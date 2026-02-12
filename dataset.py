@@ -103,7 +103,7 @@ class MultiSpectralCSVPatchDataset(Dataset):
 
         if stage is not None:
             stage = str(stage).strip().lower()
-            df = df[df["Stages"] == stage]
+            df = df[df["Stages"] != stage]
 
         df = df.reset_index(drop=True)
 
