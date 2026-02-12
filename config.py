@@ -3,19 +3,19 @@ import torch
 # ============================================================
 # Device
 # ============================================================
-DEVICE = "cpu"  # CPU for testing; change to "cuda" later
+DEVICE = "cuda"  # CPU for testing; change to "cuda" later
 
 
 # ============================================================
 # Data (CSV-based multispectral)
 # ============================================================
 # CSV must include: blue, green, red, nir, red_edge, spectral, species, stage
-TRAIN_CSV = "/Volumes/data/EstradaDataset/Dataset_with_images.csv"
-VAL_CSV = "/Volumes/data/EstradaDataset/Dataset_with_images.csv"
+TRAIN_CSV = "/home/jruben/Code/pix2spectral/Data/Dataset_with_images.csv"
+VAL_CSV = "/home/jruben/Code/pix2spectral/Data/Dataset_with_images.csv"
 
 # Root directory where the band images referenced in the CSV live
-TRAIN_IMG_DIR = "/Volumes/data/EstradaDataset/DATASET/Avocado/Multispectral Images/"
-VAL_IMG_DIR = "/Volumes/data/EstradaDataset/DATASET/Avocado/Multispectral Images/"
+TRAIN_IMG_DIR = "/home/jruben/Data/EstradaDataset/Avocado/Multispectral_Images/"
+VAL_IMG_DIR = "/home/jruben/Data/EstradaDataset/Avocado/Multispectral_Images/"
 
 # Optional filtering (set to None to disable)
 SPECIES_FILTER = "Avocado"
@@ -41,7 +41,7 @@ BLACK_THR = 0.0
 # ============================================================
 LEARNING_RATE = 2e-4
 BATCH_SIZE = 8              # start smaller since PROSPECT is CPU-heavy
-NUM_WORKERS = 0             # safer on CPU/mac; set >0 later if stable
+NUM_WORKERS = 4             # safer on CPU/mac; set >0 later if stable
 NUM_EPOCHS = 50             # for CPU test; increase later
 
 L1_LAMBDA = 100             # spectrum reconstruction weight (pix2pix-style)
