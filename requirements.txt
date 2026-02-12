@@ -1,0 +1,61 @@
+albucore==0.0.24
+albumentations==2.0.8
+annotated-types==0.7.0
+certifi==2026.1.4
+charset-normalizer==3.4.4
+click==8.3.1
+contourpy==1.3.3
+cycler==0.12.1
+dill==0.4.1
+dominate==2.9.1
+filelock==3.20.3
+fonttools==4.61.1
+fsspec==2026.1.0
+gitdb==4.0.12
+GitPython==3.1.46
+idna==3.11
+ImageIO @ file:///opt/miniconda3/conda-bld/imageio_1762953994945/work
+Jinja2==3.1.6
+joblib==1.5.3
+kiwisolver==1.4.9
+lazy_loader @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_e4fhv6eyhq/croot/lazy_loader_1718176742928/work
+MarkupSafe==3.0.3
+matplotlib==3.10.8
+mpmath==1.3.0
+multiprocess==0.70.19
+networkx==3.6.1
+numpy==2.4.2
+opencv-python-headless==4.13.0.90
+packaging @ file:///opt/miniconda3/conda-bld/packaging_1761049079066/work
+pandas==3.0.0
+pillow @ file:///Users/ec2-user/croot/pillow_1769433342773/work
+platformdirs==4.5.1
+protobuf==6.33.5
+Py6S==1.9.2
+pydantic==2.12.5
+pydantic_core==2.41.5
+pyparsing==3.3.2
+pysolar==0.13
+python-dateutil==2.9.0.post0
+PyYAML==6.0.3
+requests==2.32.5
+SALib==1.5.2
+scikit-image @ file:///opt/miniconda3/conda-bld/scikit-image_1764772821523/work
+scikit-learn==1.8.0
+scipy @ file:///opt/miniconda3/conda-bld/scipy_1759221930415/work/dist/scipy-1.15.3-cp311-cp311-macosx_12_0_arm64.whl#sha256=facdd5dc96d591ccea50b409594b34dff6421418a26baa1949491be874a9a52c
+sentry-sdk==2.51.0
+simsimd==6.5.12
+six==1.17.0
+smmap==5.0.2
+stringzilla==4.6.0
+sympy==1.14.0
+threadpoolctl==3.6.0
+tifffile @ file:///Users/ec2-user/croot/tifffile_1767871227537/work
+toml==0.10.2
+torch==2.10.0
+torchvision==0.25.0
+tqdm==4.67.2
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+urllib3==2.6.3
+wandb==0.24.1
