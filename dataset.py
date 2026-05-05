@@ -5,20 +5,26 @@ import pandas as pd
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
+import matplotlib.pyplot as plt
 
+from utils import invert_prospect_parameters, invert_prospectd_interpolated
+
+from pypro4sail import prospect
 
 def get_spectral_data(data):
     x_data = data["spectral"]
     x_data = x_data.to_list()
     np_data = [ast.literal_eval(s) for s in x_data]
     np_data = np.array(np_data)
-    np_data = np_data[:,50:]
-    #print(np_data.shape)
+    np_data = np_data[:, 50:]
+    # print(np_data.shape)
     x = np_data.reshape(np_data.shape[0], np_data.shape[1])
     return x
 
 
-def read_band_image_as_roi_patches(path, patch_h, patch_w, stride_h=None, stride_w=None, black_thr=0.0):
+def read_band_image_as_roi_patches(
+    path, patch_h, patch_w, stride_h=None, stride_w=None, black_thr=0.0
+):
     """
     Reads a (masked) band image and returns ONLY patches fully inside the ROI.
 
@@ -62,6 +68,56 @@ def read_band_image_as_roi_patches(path, patch_h, patch_w, stride_h=None, stride
     return torch.stack(patches, dim=0).float()  # [N, 1, patch_h, patch_w]
 
 
+class SpectralOnlyCSVDataset(Dataset):
+    """
+    CSV-driven dataset that returns only spectral signatures.
+
+    Required columns:
+      spectral, Species, Stages
+    """
+
+    def __init__(self, csv_path, species=None, stage=None):
+        df = pd.read_csv(os.path.expanduser(csv_path))
+
+        required_cols = ["spectral", "Species", "Stages"]
+        missing = [c for c in required_cols if c not in df.columns]
+        if missing:
+            raise ValueError("Missing columns in CSV: " + ", ".join(missing))
+
+        df["Species"] = df["Species"].astype(str).str.strip().str.lower()
+        df["Stages"] = df["Stages"].astype(str).str.strip().str.lower()
+
+        if species is not None:
+            species = str(species).strip().lower()
+            df = df[df["Species"] == species]
+
+        if stage is not None:
+            stage = str(stage).strip().lower()
+            if stage != "all":
+                df = df[df["Stages"] == stage]
+
+        df = df.reset_index(drop=True)
+
+        if len(df) == 0:
+            raise ValueError(
+                "No rows left after filtering. Check species/stage values."
+            )
+
+        self.spectral_np = get_spectral_data(df).astype(np.float32)
+
+        # Strongly recommended normalization
+        # self.mean = self.spectral_np.mean(axis=0, keepdims=True).astype(np.float32)
+        # self.std = self.spectral_np.std(axis=0, keepdims=True).astype(np.float32) + 1e-6
+        # self.spectral_np = (self.spectral_np - self.mean) / self.std
+
+        self.spec = torch.from_numpy(self.spectral_np).float()
+
+    def __len__(self):
+        return self.spec.shape[0]
+
+    def __getitem__(self, index):
+        return self.spec[index]
+
 
 class MultiSpectralCSVPatchDataset(Dataset):
     """
@@ -74,21 +130,32 @@ class MultiSpectralCSVPatchDataset(Dataset):
       image   Tensor [5, H, W]
       spectrum Tensor [L]
     """
-    def __init__(self, 
-                 csv_path, 
-                 root_dir=None, 
-                 species=None, 
-                 stage=None,
-                 patch_h=32,
-                patch_w=32,
-                 stride_h=None,
-                stride_w=None,
-                 black_thr=0.0,
-                 ):
+
+    def __init__(
+        self,
+        csv_path,
+        root_dir=None,
+        species=None,
+        stage=None,
+        patch_h=32,
+        patch_w=32,
+        stride_h=None,
+        stride_w=None,
+        black_thr=0.0,
+    ):
         df = pd.read_csv(csv_path)
         self.root_dir = root_dir if root_dir is not None else ""
 
-        required_cols = ["blue", "green", "red", "nir", "red_edge", "spectral", "Species", "Stages"]
+        required_cols = [
+            "blue",
+            "green",
+            "red",
+            "nir",
+            "red_edge",
+            "spectral",
+            "Species",
+            "Stages",
+        ]
         missing = [c for c in required_cols if c not in df.columns]
         if len(missing) > 0:
             raise ValueError("Missing columns in CSV: " + ", ".join(missing))
@@ -103,18 +170,41 @@ class MultiSpectralCSVPatchDataset(Dataset):
 
         if stage is not None:
             stage = str(stage).strip().lower()
-            df = df[df["Stages"] != stage]
+            if stage == "all":
+                print("all stages")
+                None
+            elif stage == "no_" + stage:
+                print("all stages but: " + stage)
+                df = df[df["Stages"] != stage]
+            else:
+                print("Only stage: " + stage)
+                df = df[df["Stages"] == stage]
 
         df = df.reset_index(drop=True)
 
         if len(df) == 0:
-            raise ValueError("No rows left after filtering. Check species/stage values.")
+            raise ValueError(
+                "No rows left after filtering. Check species/stage values."
+            )
 
         self.df = df
         self.band_cols = ["blue", "green", "red", "nir", "red_edge"]
 
         # Parse spectra once (after filtering)
         self.spectral_np = get_spectral_data(self.df).astype(np.float32)
+
+        # Normalize per wavelength band
+        # self.mean = self.spectral_np.mean(axis=0, keepdims=True).astype(np.float32)
+        # print(self.spectral_np.shape)
+        # print(self.mean.shape)
+        # plt.figure()
+        # plt.plot(self.mean[0, :])
+        # plt.show()
+        # os.exit()
+
+        # self.min = self.spectral_np.min(axis=0, keepdims=True).astype(np.float32)
+        # self.max = self.spectral_np.max(axis=0, keepdims=True).astype(np.float32)
+        # self.spectral_np = (self.spectral_np - self.min) / (self.max - self.min)
 
         self.patch_h = int(patch_h)
         self.patch_w = int(patch_w)
@@ -131,11 +221,11 @@ class MultiSpectralCSVPatchDataset(Dataset):
         band_patches = {}
         for c in self.band_cols:
             fname = str(row[c])
-            parts = fname.split('\\')
+            parts = fname.split("\\")
             path = os.path.join(self.root_dir, parts[1]) if self.root_dir else parts[1]
-            #print(path)
+            # print(path)
 
-            #band = read_band_image(path)
+            # band = read_band_image(path)
             band_patches[c] = read_band_image_as_roi_patches(
                 path=path,
                 patch_h=self.patch_h,
@@ -173,28 +263,68 @@ def patch_collate_fn(batch):
     return batch_bands, batch_spec
 
 
-
 if __name__ == "__main__":
     dataset = MultiSpectralCSVPatchDataset(
-        csv_path="/Volumes/data/EstradaDataset/Dataset_with_images.csv",
-        root_dir="/Volumes/data/EstradaDataset/DATASET/Avocado/Multispectral Images/",
+        csv_path="~/Code/pix2spectral/Data/Dataset_with_images.csv",
+        root_dir="/media/usr3/Expansion/Data/EstradaDataset/Avocado/Multispectral Images/",
         species="Avocado",
-        stage="Fresh",
+        stage="fresh",
         patch_h=32,
         patch_w=32,
-        stride_h=16,   # non-overlapping; set smaller for overlap
+        stride_h=16,  # non-overlapping; set smaller for overlap
         stride_w=16,
         black_thr=0.0,  #
     )
 
-    loader = DataLoader(dataset, batch_size=5, shuffle=True, collate_fn=patch_collate_fn,)
+    loader = DataLoader(
+        dataset,
+        batch_size=1,
+        shuffle=True,
+        collate_fn=patch_collate_fn,
+    )
 
     for band_dict, spec in loader:
         print("spec shape:", spec.shape)  # [B, L]
-        print("num b patches in sample0:", band_dict["blue"][0].shape[0])  # N0
-        print("num g patches in sample0:", band_dict["green"][0].shape[0])  # N0
-        print("num r patches in sample0:", band_dict["red"][0].shape[0])  # N0
-        print("num nir patches in sample0:", band_dict["nir"][0].shape[0])  # N0
-        print("num re patches in sample0:", band_dict["red_edge"][0].shape[0])  # N0
-        print("blue patch tensor shape:", band_dict["blue"][0].shape)  # [N0, 1, ph, pw]
+        rho = spec[0].numpy()
+        wls = np.linspace(400, 2500, 2101)
+        print(rho.shape)
+        print(wls.shape)
+        best_params, result = invert_prospect_parameters(
+            rho_leaf=rho,  # shape [M]
+            wls=wls,  # shape [M]
+            options={
+                    "maxiter": 5000,
+                    "maxfun": 15000,
+                    "ftol": 1e-16,
+                    "gtol": 1e-10,
+                },
+        )
+
+        wl_model, rho_fit, tau_model = prospect.prospectd(
+            best_params["N_leaf"],
+            best_params["Cab"],
+            best_params["Car"],
+            best_params["Cbrown"],
+            best_params["Cw"],
+            best_params["Cm"],
+            best_params["Ant"],
+        )
+        #params, result, rho_fit = invert_prospectd_interpolated(
+        #    rho_measured=rho,
+        #    wl_measured=wls,
+        #    n_restarts=300,
+        #    fit_ranges=((400, 720), (720, 1380), (1380, 1500), (1500, 2500)),
+        #)
+
+        print(best_params)
+
+        plt.figure()
+        plt.plot(wls, rho, label="Measured")
+        plt.plot(wls, rho_fit, label="PROSPECT-D fitted")
+        plt.xlabel("Wavelength [nm]")
+        plt.ylabel("Reflectance")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
         break

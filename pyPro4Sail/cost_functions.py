@@ -311,7 +311,7 @@ def cost_prospectd_wl(x0,ObjParam,FixedValues,rho_leaf,wls,scale):
         Mean Square Error of observed vs. modelled surface reflectance
         This is the function to be minimized.'''
     
-    param_list=prospect_jacobian.params_prospect
+    param_list=prospect_jacobian.paramsProspectD
     # Get the a priori parameters and fixed parameters for the inversion
     input_parameters=dict()
     i=0
@@ -361,7 +361,7 @@ def cost_prospectd(x0,ObjParam,FixedValues,rho_leaf,wls,scale):
         Mean Square Error of observed vs. modelled surface reflectance
         This is the function to be minimized.'''
     
-    param_list=prospect_jacobian.params_prospect
+    param_list=prospect_jacobian.paramsProspectD
     # Get the a priori parameters and fixed parameters for the inversion
     input_parameters=dict()
     i=0
@@ -408,7 +408,7 @@ def cost_jac_prospectd(x0,ObjParam,FixedValues,rho_leaf,wls,scale):
         Mean Square Error of observed vs. modelled surface reflectance
         This is the function to be minimized.'''
     
-    param_list=prospect_jacobian.params_prospect
+    param_list=prospect_jacobian.paramsProspectD
     # Get the a priori parameters and fixed parameters for the inversion
     input_parameters=dict()
     i=0
