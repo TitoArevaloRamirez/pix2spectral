@@ -1,71 +1,135 @@
-import os
 import ast
+import os
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader, Dataset
 
-from utils import invert_prospect_parameters, invert_prospectd_interpolated
 
-from pypro4sail import prospect
+BAND_KEYS = ["blue", "green", "red", "nir", "red_edge"]
 
-def get_spectral_data(data):
-    x_data = data["spectral"]
-    x_data = x_data.to_list()
-    np_data = [ast.literal_eval(s) for s in x_data]
-    np_data = np.array(np_data)
-    np_data = np_data[:, 50:]
-    # print(np_data.shape)
-    x = np_data.reshape(np_data.shape[0], np_data.shape[1])
-    return x
+
+def normalize_stage_name(stage: str) -> str:
+    """
+    Normalize stage labels for robust filtering and grouping.
+
+    Examples:
+        "Stage 1"  -> "stage1"
+        "stage_2"  -> "stage2"
+        "Dry"      -> "dry"
+    """
+    s = str(stage).strip().lower()
+    s = s.replace("_", "")
+    s = s.replace("-", "")
+    s = s.replace(" ", "")
+
+    aliases = {
+        "fresh": "fresh",
+        "stage1": "stage1",
+        "stage01": "stage1",
+        "s1": "stage1",
+        "1": "stage1",
+        "stage2": "stage2",
+        "stage02": "stage2",
+        "s2": "stage2",
+        "2": "stage2",
+        "stage3": "stage3",
+        "stage03": "stage3",
+        "s3": "stage3",
+        "3": "stage3",
+        "dry": "dry",
+        "dried": "dry",
+    }
+
+    return aliases.get(s, s)
+
+
+def get_spectral_data(data: pd.DataFrame, remove_first_bands: int = 50) -> np.ndarray:
+    """
+    Parse the CSV 'spectral' column into an array.
+
+    Returns:
+        spectra: [N, M]
+    """
+    if "spectral" not in data.columns:
+        raise ValueError("CSV must contain a 'spectral' column.")
+
+    spectral_strings = data["spectral"].to_list()
+    spectra = [ast.literal_eval(s) for s in spectral_strings]
+    spectra = np.asarray(spectra, dtype=np.float32)
+
+    if spectra.ndim != 2:
+        raise ValueError(f"Expected parsed spectra to be [N, M], got {spectra.shape}")
+
+    if remove_first_bands > 0:
+        if spectra.shape[1] <= remove_first_bands:
+            raise ValueError(
+                f"Cannot remove first {remove_first_bands} bands from spectra "
+                f"with only {spectra.shape[1]} bands."
+            )
+        spectra = spectra[:, remove_first_bands:]
+
+    return spectra.astype(np.float32)
 
 
 def read_band_image_as_roi_patches(
-    path, patch_h, patch_w, stride_h=None, stride_w=None, black_thr=0.0
-):
+    path: str,
+    patch_h: int,
+    patch_w: int,
+    stride_h: Optional[int] = None,
+    stride_w: Optional[int] = None,
+    black_thr: float = 0.0,
+) -> torch.Tensor:
     """
-    Reads a (masked) band image and returns ONLY patches fully inside the ROI.
+    Read a band image and return patches fully inside the non-black ROI.
 
-    ROI definition:
-      - pixels with value > black_thr are considered "inside ROI"
-      - patch is kept only if ALL pixels in the patch are > black_thr
-        (so it contains no black/background pixels)
+    ROI rule:
+        pixel > black_thr
+
+    Kept patch rule:
+        all pixels in the patch must be inside ROI.
 
     Returns:
-      patches: Tensor [N, 1, patch_h, patch_w]  (N can be 0)
+        patches: Tensor [N, 1, patch_h, patch_w]
+                 N can be 0.
     """
     if stride_h is None:
         stride_h = patch_h
     if stride_w is None:
         stride_w = patch_w
 
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Band image not found: {path}")
+
     img = Image.open(path).convert("L")
-    arr = np.array(img, dtype=np.float32)  # [H, W]
+    arr = np.asarray(img, dtype=np.float32)
 
-    H, W = arr.shape
-    if H < patch_h or W < patch_w:
-        # too small to extract any patch
+    height, width = arr.shape
+
+    if height < patch_h or width < patch_w:
         return torch.empty(0, 1, patch_h, patch_w, dtype=torch.float32)
 
-    roi = arr > black_thr  # [H, W] boolean
-
+    roi = arr > black_thr
     patches = []
-    for top in range(0, H - patch_h + 1, stride_h):
-        for left in range(0, W - patch_w + 1, stride_w):
+
+    for top in range(0, height - patch_h + 1, stride_h):
+        for left in range(0, width - patch_w + 1, stride_w):
             roi_patch = roi[top : top + patch_h, left : left + patch_w]
+
             if not roi_patch.all():
-                continue  # reject if any black/background pixel exists
+                continue
 
-            p = arr[top : top + patch_h, left : left + patch_w]
-            p = torch.from_numpy(p).unsqueeze(0)  # [1, patch_h, patch_w]
-            patches.append(p)
+            patch = arr[top : top + patch_h, left : left + patch_w]
+            patch = torch.from_numpy(patch).unsqueeze(0)
+            patches.append(patch)
 
-    if len(patches) == 0:
+    if not patches:
         return torch.empty(0, 1, patch_h, patch_w, dtype=torch.float32)
 
-    return torch.stack(patches, dim=0).float()  # [N, 1, patch_h, patch_w]
+    return torch.stack(patches, dim=0).float()
 
 
 class SpectralOnlyCSVDataset(Dataset):
@@ -73,11 +137,21 @@ class SpectralOnlyCSVDataset(Dataset):
     CSV-driven dataset that returns only spectral signatures.
 
     Required columns:
-      spectral, Species, Stages
+        spectral, Species, Stages
+
+    Returns:
+        spectrum: Tensor [M]
     """
 
-    def __init__(self, csv_path, species=None, stage=None):
-        df = pd.read_csv(os.path.expanduser(csv_path))
+    def __init__(
+        self,
+        csv_path: str,
+        species: Optional[str] = None,
+        stage: Optional[str] = None,
+        remove_first_bands: int = 50,
+    ):
+        csv_path = os.path.expanduser(csv_path)
+        df = pd.read_csv(csv_path)
 
         required_cols = ["spectral", "Species", "Stages"]
         missing = [c for c in required_cols if c not in df.columns]
@@ -85,66 +159,64 @@ class SpectralOnlyCSVDataset(Dataset):
             raise ValueError("Missing columns in CSV: " + ", ".join(missing))
 
         df["Species"] = df["Species"].astype(str).str.strip().str.lower()
-        df["Stages"] = df["Stages"].astype(str).str.strip().str.lower()
+        df["Stages"] = df["Stages"].map(normalize_stage_name)
 
         if species is not None:
             species = str(species).strip().lower()
             df = df[df["Species"] == species]
 
         if stage is not None:
-            stage = str(stage).strip().lower()
+            stage = normalize_stage_name(stage)
             if stage != "all":
                 df = df[df["Stages"] == stage]
 
         df = df.reset_index(drop=True)
 
         if len(df) == 0:
-            raise ValueError(
-                "No rows left after filtering. Check species/stage values."
-            )
+            raise ValueError("No rows left after filtering. Check species/stage values.")
 
-        self.spectral_np = get_spectral_data(df).astype(np.float32)
-
-        # Strongly recommended normalization
-        # self.mean = self.spectral_np.mean(axis=0, keepdims=True).astype(np.float32)
-        # self.std = self.spectral_np.std(axis=0, keepdims=True).astype(np.float32) + 1e-6
-        # self.spectral_np = (self.spectral_np - self.mean) / self.std
-
+        self.df = df
+        self.spectral_np = get_spectral_data(df, remove_first_bands=remove_first_bands)
         self.spec = torch.from_numpy(self.spectral_np).float()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.spec.shape[0]
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> torch.Tensor:
         return self.spec[index]
 
 
 class MultiSpectralCSVPatchDataset(Dataset):
     """
-    CSV-driven multispectral dataset (no transforms), with filtering by species and stage.
+    CSV-driven multispectral dataset with filtering by species and stage.
 
     Required CSV columns:
-      blue, green, red, nir, red_edge, spectral, species, stage
+        blue, green, red, nir, red_edge, spectral, Species, Stages
 
     Returns:
-      image   Tensor [5, H, W]
-      spectrum Tensor [L]
+        band_patches : dict {band_name: Tensor [N_i, 1, patch_h, patch_w]}
+        spectrum     : Tensor [M]
+        stage_label  : str
     """
 
     def __init__(
         self,
-        csv_path,
-        root_dir=None,
-        species=None,
-        stage=None,
-        patch_h=32,
-        patch_w=32,
-        stride_h=None,
-        stride_w=None,
-        black_thr=0.0,
+        csv_path: str,
+        root_dir: Optional[str] = None,
+        species: Optional[str] = None,
+        stage: Optional[str] = None,
+        patch_h: int = 32,
+        patch_w: int = 32,
+        stride_h: Optional[int] = None,
+        stride_w: Optional[int] = None,
+        black_thr: float = 0.0,
+        remove_first_bands: int = 50,
+        print_distribution: bool = True,
     ):
+        csv_path = os.path.expanduser(csv_path)
         df = pd.read_csv(csv_path)
-        self.root_dir = root_dir if root_dir is not None else ""
+
+        self.root_dir = os.path.expanduser(root_dir) if root_dir is not None else ""
 
         required_cols = [
             "blue",
@@ -157,12 +229,11 @@ class MultiSpectralCSVPatchDataset(Dataset):
             "Stages",
         ]
         missing = [c for c in required_cols if c not in df.columns]
-        if len(missing) > 0:
+        if missing:
             raise ValueError("Missing columns in CSV: " + ", ".join(missing))
 
-        # Normalize for robust matching (strip + lowercase)
         df["Species"] = df["Species"].astype(str).str.strip().str.lower()
-        df["Stages"] = df["Stages"].astype(str).str.strip().str.lower()
+        df["Stages"] = df["Stages"].map(normalize_stage_name)
 
         if species is not None:
             species = str(species).strip().lower()
@@ -170,41 +241,32 @@ class MultiSpectralCSVPatchDataset(Dataset):
 
         if stage is not None:
             stage = str(stage).strip().lower()
+
             if stage == "all":
-                print("all stages")
-                None
-            elif stage == "no_" + stage:
-                print("all stages but: " + stage)
-                df = df[df["Stages"] != stage]
+                print("Using all stages")
+
+            elif stage.startswith("no_"):
+                excluded_stage = normalize_stage_name(stage.replace("no_", "", 1))
+                print(f"Using all stages except: {excluded_stage}")
+                df = df[df["Stages"] != excluded_stage]
+
             else:
-                print("Only stage: " + stage)
+                stage = normalize_stage_name(stage)
+                print(f"Using only stage: {stage}")
                 df = df[df["Stages"] == stage]
 
         df = df.reset_index(drop=True)
 
         if len(df) == 0:
-            raise ValueError(
-                "No rows left after filtering. Check species/stage values."
-            )
+            raise ValueError("No rows left after filtering. Check species/stage values.")
 
         self.df = df
-        self.band_cols = ["blue", "green", "red", "nir", "red_edge"]
+        self.band_cols = BAND_KEYS.copy()
 
-        # Parse spectra once (after filtering)
-        self.spectral_np = get_spectral_data(self.df).astype(np.float32)
-
-        # Normalize per wavelength band
-        # self.mean = self.spectral_np.mean(axis=0, keepdims=True).astype(np.float32)
-        # print(self.spectral_np.shape)
-        # print(self.mean.shape)
-        # plt.figure()
-        # plt.plot(self.mean[0, :])
-        # plt.show()
-        # os.exit()
-
-        # self.min = self.spectral_np.min(axis=0, keepdims=True).astype(np.float32)
-        # self.max = self.spectral_np.max(axis=0, keepdims=True).astype(np.float32)
-        # self.spectral_np = (self.spectral_np - self.min) / (self.max - self.min)
+        self.spectral_np = get_spectral_data(
+            self.df,
+            remove_first_bands=remove_first_bands,
+        ).astype(np.float32)
 
         self.patch_h = int(patch_h)
         self.patch_w = int(patch_w)
@@ -212,21 +274,59 @@ class MultiSpectralCSVPatchDataset(Dataset):
         self.stride_w = int(stride_w) if stride_w is not None else None
         self.black_thr = float(black_thr)
 
-    def __len__(self):
+        if print_distribution:
+            self.print_stage_distribution()
+
+    def print_stage_distribution(self) -> None:
+        unique, counts = np.unique(self.df["Stages"].to_numpy(), return_counts=True)
+
+        print("\nDataset stage distribution")
+        print("--------------------------")
+        for stage, count in zip(unique, counts):
+            print(f"{stage}: {count}")
+
+    def __len__(self) -> int:
         return len(self.df)
 
-    def __getitem__(self, index):
+    def _resolve_image_path(self, fname: str) -> str:
+        """
+        Resolve image paths robustly.
+
+        Handles:
+            - absolute paths
+            - relative paths
+            - Windows-style paths in the CSV
+            - bare filenames under root_dir
+        """
+        fname = str(fname).strip().replace("\\", os.sep)
+
+        if os.path.exists(fname):
+            return fname
+
+        candidates = []
+
+        if self.root_dir:
+            candidates.append(os.path.join(self.root_dir, fname))
+            candidates.append(os.path.join(self.root_dir, os.path.basename(fname)))
+
+        candidates.append(os.path.basename(fname))
+
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                return candidate
+
+        # Return the most useful attempted path for the FileNotFoundError message.
+        return candidates[0] if candidates else fname
+
+    def __getitem__(self, index: int):
         row = self.df.iloc[index]
 
         band_patches = {}
-        for c in self.band_cols:
-            fname = str(row[c])
-            parts = fname.split("\\")
-            path = os.path.join(self.root_dir, parts[1]) if self.root_dir else parts[1]
-            # print(path)
 
-            # band = read_band_image(path)
-            band_patches[c] = read_band_image_as_roi_patches(
+        for band_name in self.band_cols:
+            path = self._resolve_image_path(row[band_name])
+
+            band_patches[band_name] = read_band_image_as_roi_patches(
                 path=path,
                 patch_h=self.patch_h,
                 patch_w=self.patch_w,
@@ -234,33 +334,39 @@ class MultiSpectralCSVPatchDataset(Dataset):
                 stride_w=self.stride_w,
                 black_thr=self.black_thr,
             )
-        spec = torch.from_numpy(self.spectral_np[index]).float()  # [L]
 
-        return band_patches, spec
+        spec = torch.from_numpy(self.spectral_np[index]).float()
+        stage_label = str(row["Stages"])
+
+        return band_patches, spec, stage_label
 
 
 def patch_collate_fn(batch):
     """
-    Batch is a list of (band_patches_dict, spectrum).
+    Collate function for MultiSpectralCSVPatchDataset.
 
-    Because each sample can yield a different number of ROI patches per band,
-    we keep patches as lists and stack spectra normally.
+    Input batch:
+        list of (band_patches_dict, spectrum, stage_label)
 
     Returns:
-      batch_bands: dict {band_name: list of Tensor [N_i, 1, ph, pw]}
-      batch_spec : Tensor [B, L]
+        batch_bands : dict {band_name: list[Tensor [N_i, 1, ph, pw]]}
+        batch_spec  : Tensor [B, M]
+        batch_stage : list[str]
     """
-    band_keys = ["blue", "green", "red", "nir", "red_edge"]
-    batch_bands = {k: [] for k in band_keys}
+    batch_bands = {k: [] for k in BAND_KEYS}
     specs = []
+    stages = []
 
-    for band_dict, spec in batch:
-        for k in band_keys:
-            batch_bands[k].append(band_dict[k])
+    for band_dict, spec, stage_label in batch:
+        for band_name in BAND_KEYS:
+            batch_bands[band_name].append(band_dict[band_name])
+
         specs.append(spec)
+        stages.append(str(stage_label))
 
     batch_spec = torch.stack(specs, dim=0)
-    return batch_bands, batch_spec
+
+    return batch_bands, batch_spec, stages
 
 
 if __name__ == "__main__":
@@ -268,63 +374,23 @@ if __name__ == "__main__":
         csv_path="~/Code/pix2spectral/Data/Dataset_with_images.csv",
         root_dir="/media/usr3/Expansion/Data/EstradaDataset/Avocado/Multispectral Images/",
         species="Avocado",
-        stage="fresh",
+        stage="all",
         patch_h=32,
         patch_w=32,
-        stride_h=16,  # non-overlapping; set smaller for overlap
+        stride_h=16,
         stride_w=16,
-        black_thr=0.0,  #
+        black_thr=0.0,
     )
 
     loader = DataLoader(
         dataset,
-        batch_size=1,
-        shuffle=True,
+        batch_size=4,
+        shuffle=False,
         collate_fn=patch_collate_fn,
     )
 
-    for band_dict, spec in loader:
-        print("spec shape:", spec.shape)  # [B, L]
-        rho = spec[0].numpy()
-        wls = np.linspace(400, 2500, 2101)
-        print(rho.shape)
-        print(wls.shape)
-        best_params, result = invert_prospect_parameters(
-            rho_leaf=rho,  # shape [M]
-            wls=wls,  # shape [M]
-            options={
-                    "maxiter": 5000,
-                    "maxfun": 15000,
-                    "ftol": 1e-16,
-                    "gtol": 1e-10,
-                },
-        )
-
-        wl_model, rho_fit, tau_model = prospect.prospectd(
-            best_params["N_leaf"],
-            best_params["Cab"],
-            best_params["Car"],
-            best_params["Cbrown"],
-            best_params["Cw"],
-            best_params["Cm"],
-            best_params["Ant"],
-        )
-        #params, result, rho_fit = invert_prospectd_interpolated(
-        #    rho_measured=rho,
-        #    wl_measured=wls,
-        #    n_restarts=300,
-        #    fit_ranges=((400, 720), (720, 1380), (1380, 1500), (1500, 2500)),
-        #)
-
-        print(best_params)
-
-        plt.figure()
-        plt.plot(wls, rho, label="Measured")
-        plt.plot(wls, rho_fit, label="PROSPECT-D fitted")
-        plt.xlabel("Wavelength [nm]")
-        plt.ylabel("Reflectance")
-        plt.legend()
-        plt.grid(True)
-        plt.show()
-
+    for band_dict, spec, stages in loader:
+        print("spec shape:", spec.shape)
+        print("stages:", stages)
+        print("blue sample 0 patches:", band_dict["blue"][0].shape)
         break

@@ -1,0 +1,10 @@
+species,split,rows,columns,output_file
+Avocado,train,365,112,avocado_train.csv
+Avocado,val,105,112,avocado_val.csv
+Avocado,test,50,112,avocado_test.csv
+olive,train,390,112,olive_train.csv
+olive,val,110,112,olive_val.csv
+olive,test,55,112,olive_test.csv
+vineyard,train,365,112,vineyard_train.csv
+vineyard,val,105,112,vineyard_val.csv
+vineyard,test,50,112,vineyard_test.csv
