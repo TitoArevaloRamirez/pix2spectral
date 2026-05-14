@@ -5,10 +5,10 @@ import torch.nn as nn
 import numpy as np
 
 
-
 # ============================================================
 # 1) Parameter bounding (physics-valid PROSPECT inputs)
 # ============================================================
+
 
 class ProspectDParameterBounds(nn.Module):
     """
@@ -16,13 +16,18 @@ class ProspectDParameterBounds(nn.Module):
 
     Order: (Nleaf, Cab, Car, Cbrown, Cw, Cm, Ant)
     """
+
     def __init__(self, mins=None, maxs=None, eps=1e-6):
         super().__init__()
         self.eps = float(eps)
 
         # Reasonable defaults (adjust to your dataset/protocol if needed)
-        default_mins = torch.tensor([1.0,   0.0,  0.0,  0.0,  0.0001, 0.0001, 0.0], dtype=torch.float32)
-        default_maxs = torch.tensor([3.5, 100.0, 30.0,  2.0,  0.0500, 0.0300, 30.0], dtype=torch.float32)
+        default_mins = torch.tensor(
+            [1.0, 0.0, 0.0, 0.0, 0.0001, 0.0001, 0.0], dtype=torch.float32
+        )
+        default_maxs = torch.tensor(
+            [100.0, 1500.0, 100.0, 100.0, 1.0, 1.0, 30.0], dtype=torch.float32
+        )
 
         if mins is None:
             mins = default_mins
@@ -50,6 +55,7 @@ class ProspectDParameterBounds(nn.Module):
 # 2) Differentiable PROSPECT-D using analytic Jacobian
 # ============================================================
 
+
 class ProspectDLayerAnalytic(torch.autograd.Function):
     @staticmethod
     def forward(ctx, params):
@@ -67,8 +73,12 @@ class ProspectDLayerAnalytic(torch.autograd.Function):
             p = p_np[i]
 
             wl, rho, tau, Delta_rho, Delta_tau = prospect_jacobian.JacProspectD(
-                float(p[0]), float(p[1]), float(p[2]),
-                float(p[3]), float(p[4]), float(p[5]),
+                float(p[0]),
+                float(p[1]),
+                float(p[2]),
+                float(p[3]),
+                float(p[4]),
+                float(p[5]),
                 float(p[6]),
             )
 
@@ -89,8 +99,8 @@ class ProspectDLayerAnalytic(torch.autograd.Function):
             rho_list.append(rho)
             J_list.append(J)
 
-        rho_np = np.stack(rho_list, axis=0)   # [B,L]
-        J_np = np.stack(J_list, axis=0)       # [B,L,7]
+        rho_np = np.stack(rho_list, axis=0)  # [B,L]
+        J_np = np.stack(J_list, axis=0)  # [B,L,7]
 
         ctx.save_for_backward(torch.from_numpy(J_np))
         return torch.from_numpy(rho_np).to(params.device).type_as(params)
@@ -111,6 +121,7 @@ class PhysicsInformedProspectHead(nn.Module):
     """
     raw_params [B,7] -> bounded pParams [B,7] -> y_fake [B,L] (reflectance), differentiable
     """
+
     def __init__(self, mins=None, maxs=None):
         super().__init__()
         self.bounds = ProspectDParameterBounds(mins=mins, maxs=maxs)
@@ -125,11 +136,20 @@ class PhysicsInformedProspectHead(nn.Module):
 # 3) Minimal U-Net patch encoder for 32x32 patches (shared weights)
 # ============================================================
 
+
 class Down(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, kernel_size=4, stride=2, padding=1, padding_mode="reflect", bias=False),
+            nn.Conv2d(
+                in_ch,
+                out_ch,
+                kernel_size=4,
+                stride=2,
+                padding=1,
+                padding_mode="reflect",
+                bias=False,
+            ),
             nn.BatchNorm2d(out_ch),
             nn.LeakyReLU(0.2, inplace=True),
         )
@@ -142,7 +162,9 @@ class Up(nn.Module):
     def __init__(self, in_ch, out_ch, use_dropout=False):
         super().__init__()
         layers = [
-            nn.ConvTranspose2d(in_ch, out_ch, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.ConvTranspose2d(
+                in_ch, out_ch, kernel_size=4, stride=2, padding=1, bias=False
+            ),
             nn.BatchNorm2d(out_ch),
             nn.ReLU(inplace=True),
         ]
@@ -160,32 +182,49 @@ class SmallUNetPatchEncoder(nn.Module):
     Input:  [N, 1, 32, 32]
     Output: [N, embed_dim]
     """
+
     def __init__(self, in_channels=1, base_features=8, embed_dim=64):
         super().__init__()
         f = base_features
 
         self.initial = nn.Sequential(
-            nn.Conv2d(in_channels, f, kernel_size=3, stride=1, padding=1, padding_mode="reflect", bias=False),
+            nn.Conv2d(
+                in_channels,
+                f,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                padding_mode="reflect",
+                bias=False,
+            ),
             nn.BatchNorm2d(f),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
         # 32 -> 16 -> 8 -> 4 -> 2 -> 1
-        self.d1 = Down(f,   f * 2)
-        self.d2 = Down(f*2, f * 4)
-        self.d3 = Down(f*4, f * 8)
-        self.d4 = Down(f*8, f * 8)
-        self.d5 = Down(f*8, f * 8)
+        self.d1 = Down(f, f * 2)
+        self.d2 = Down(f * 2, f * 4)
+        self.d3 = Down(f * 4, f * 8)
+        self.d4 = Down(f * 8, f * 8)
+        self.d5 = Down(f * 8, f * 8)
 
         # 1 -> 2 -> 4 -> 8 -> 16 -> 32
-        self.u1 = Up(f*8,          f*8, use_dropout=False)
-        self.u2 = Up(f*8 + f*8,    f*8, use_dropout=False)
-        self.u3 = Up(f*8 + f*8,    f*4, use_dropout=False)
-        self.u4 = Up(f*4 + f*4,    f*2, use_dropout=False)
-        self.u5 = Up(f*2 + f*2,    f,   use_dropout=False)
+        self.u1 = Up(f * 8, f * 8, use_dropout=False)
+        self.u2 = Up(f * 8 + f * 8, f * 8, use_dropout=False)
+        self.u3 = Up(f * 8 + f * 8, f * 4, use_dropout=False)
+        self.u4 = Up(f * 4 + f * 4, f * 2, use_dropout=False)
+        self.u5 = Up(f * 2 + f * 2, f, use_dropout=False)
 
         self.fuse = nn.Sequential(
-            nn.Conv2d(f + f, f, kernel_size=3, stride=1, padding=1, padding_mode="reflect", bias=False),
+            nn.Conv2d(
+                f + f,
+                f,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                padding_mode="reflect",
+                bias=False,
+            ),
             nn.BatchNorm2d(f),
             nn.ReLU(inplace=True),
         )
@@ -198,21 +237,21 @@ class SmallUNetPatchEncoder(nn.Module):
 
     def forward(self, x):
         x0 = self.initial(x)  # [N,f,32,32]
-        x1 = self.d1(x0)      # [N,2f,16,16]
-        x2 = self.d2(x1)      # [N,4f,8,8]
-        x3 = self.d3(x2)      # [N,8f,4,4]
-        x4 = self.d4(x3)      # [N,8f,2,2]
-        x5 = self.d5(x4)      # [N,8f,1,1]
+        x1 = self.d1(x0)  # [N,2f,16,16]
+        x2 = self.d2(x1)  # [N,4f,8,8]
+        x3 = self.d3(x2)  # [N,8f,4,4]
+        x4 = self.d4(x3)  # [N,8f,2,2]
+        x5 = self.d5(x4)  # [N,8f,1,1]
 
-        y1 = self.u1(x5)                       # [N,8f,2,2]
-        y2 = self.u2(torch.cat([y1, x4], 1))    # [N,8f,4,4]
-        y3 = self.u3(torch.cat([y2, x3], 1))    # [N,4f,8,8]
-        y4 = self.u4(torch.cat([y3, x2], 1))    # [N,2f,16,16]
-        y5 = self.u5(torch.cat([y4, x1], 1))    # [N,f,32,32]
+        y1 = self.u1(x5)  # [N,8f,2,2]
+        y2 = self.u2(torch.cat([y1, x4], 1))  # [N,8f,4,4]
+        y3 = self.u3(torch.cat([y2, x3], 1))  # [N,4f,8,8]
+        y4 = self.u4(torch.cat([y3, x2], 1))  # [N,2f,16,16]
+        y5 = self.u5(torch.cat([y4, x1], 1))  # [N,f,32,32]
 
-        z = self.fuse(torch.cat([y5, x0], 1))   # [N,f,32,32]
-        z = z.mean(dim=(2, 3))                  # [N,f]
-        z = self.proj(z)                        # [N,embed_dim]
+        z = self.fuse(torch.cat([y5, x0], 1))  # [N,f,32,32]
+        z = z.mean(dim=(2, 3))  # [N,f]
+        z = self.proj(z)  # [N,embed_dim]
         return z
 
 
@@ -226,6 +265,7 @@ class MeanPool(nn.Module):
 # ============================================================
 # 4) Full generator: multispectral patches -> params -> PROSPECT spectrum
 # ============================================================
+
 
 class MultiSpectralPatchToProspectGenerator(nn.Module):
     """
@@ -241,6 +281,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
       y_fake: [L]
       pParams: [7]
     """
+
     def __init__(self, bands=None, base_features=8, embed_dim=64, mins=None, maxs=None):
         super().__init__()
         if bands is None:
@@ -248,7 +289,9 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
         self.bands = bands
 
         # Shared weights across bands
-        self.patch_encoder = SmallUNetPatchEncoder(in_channels=1, base_features=base_features, embed_dim=embed_dim)
+        self.patch_encoder = SmallUNetPatchEncoder(
+            in_channels=1, base_features=base_features, embed_dim=embed_dim
+        )
         self.pool = nn.ModuleDict({b: MeanPool() for b in self.bands})
 
         fused_dim = embed_dim * len(self.bands)
@@ -256,15 +299,12 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
             nn.Linear(fused_dim, 128),
             nn.LayerNorm(128),
             nn.ReLU(inplace=True),
-
             nn.Linear(128, 64),
             nn.LayerNorm(64),
             nn.ReLU(inplace=True),
-
             nn.Linear(64, 32),
             nn.LayerNorm(32),
             nn.ReLU(inplace=True),
-
             nn.Linear(32, 7),
         )
 
@@ -273,14 +313,14 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
     def forward(self, band_patches):
         vecs = []
         for b in self.bands:
-            P = band_patches[b]          # [N,1,32,32]
-            E = self.patch_encoder(P)    # [N,D]
-            v = self.pool[b](E)          # [D]
+            P = band_patches[b]  # [N,1,32,32]
+            E = self.patch_encoder(P)  # [N,D]
+            v = self.pool[b](E)  # [D]
             vecs.append(v)
 
         fused = torch.cat(vecs, dim=0).unsqueeze(0)  # [1, 5D]
-        raw_params = self.param_mlp(fused)           # [1,7]
-        y_fake, pParams = self.physics(raw_params)   # y_fake [1,L], pParams [1,7]
+        raw_params = self.param_mlp(fused)  # [1,7]
+        y_fake, pParams = self.physics(raw_params)  # y_fake [1,L], pParams [1,7]
         return y_fake.squeeze(0), pParams.squeeze(0)
 
     def forward_batch_list(self, batch_band_dict):
@@ -308,6 +348,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
 # ============================================================
 # 5) Checking code (forward shapes + gradient flow)
 # ============================================================
+
 
 def _make_fake_sample(device):
     return {
@@ -379,4 +420,3 @@ if __name__ == "__main__":
     )
 
     check_generator(gen, device)
-
