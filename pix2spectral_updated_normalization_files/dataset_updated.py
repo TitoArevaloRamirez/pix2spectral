@@ -306,7 +306,9 @@ def detect_leaf_mask_by_contour(
 
         # Fallback 1: Otsu foreground. Try both polarities.
         candidates = []
-        _, otsu_hi = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, otsu_hi = cv2.threshold(
+            blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
 
         candidates.append(otsu_hi > 0)
         candidates.append(otsu_hi == 0)
@@ -383,9 +385,7 @@ def _safe_percentile(x, q, default=0.0):
     return value
 
 
-def parse_normalization_mode(
-    normalization_mode=None, normalization_scope=None, normalization_method=None
-):
+def parse_normalization_mode(normalization_mode=None, normalization_scope=None, normalization_method=None):
     """
     Normalize old and new config styles into (scope, method).
 
@@ -398,11 +398,7 @@ def parse_normalization_mode(
     """
     if normalization_scope is not None:
         scope = str(normalization_scope).strip().lower()
-        method = (
-            "robust_zscore"
-            if normalization_method is None
-            else str(normalization_method).strip().lower()
-        )
+        method = "robust_zscore" if normalization_method is None else str(normalization_method).strip().lower()
         return scope, method
 
     if normalization_mode is None:
@@ -589,10 +585,7 @@ def compute_band_normalization_stats(
                     )
                     continue
 
-                if (
-                    sample_pixels_per_image is not None
-                    and pixels.size > sample_pixels_per_image
-                ):
+                if sample_pixels_per_image is not None and pixels.size > sample_pixels_per_image:
                     idx = rng.choice(
                         pixels.size,
                         size=int(sample_pixels_per_image),
@@ -609,9 +602,7 @@ def compute_band_normalization_stats(
                     "Using identity normalization.",
                     RuntimeWarning,
                 )
-                rec = _make_stat_record(
-                    np.asarray([], dtype=np.float32), lower_percentile, upper_percentile
-                )
+                rec = _make_stat_record(np.asarray([], dtype=np.float32), lower_percentile, upper_percentile)
                 rec["num_images"] = 0
                 stats["groups"][group_key][band] = rec
                 continue
@@ -688,10 +679,7 @@ def _get_stat_from_normalization_stats(normalization_stats, stage, band, scope):
     if scope == "global_band":
         if band in normalization_stats:
             return normalization_stats[band]
-        if (
-            "__global__" in normalization_stats
-            and band in normalization_stats["__global__"]
-        ):
+        if "__global__" in normalization_stats and band in normalization_stats["__global__"]:
             return normalization_stats["__global__"][band]
 
     raise KeyError(
@@ -954,9 +942,7 @@ def read_band_image_as_leaf_patches(
         if stage is None:
             raise ValueError("stage must be provided when using image normalization.")
         if band_name is None:
-            raise ValueError(
-                "band_name must be provided when using image normalization."
-            )
+            raise ValueError("band_name must be provided when using image normalization.")
 
         arr = normalize_band_image(
             arr=arr_raw,
@@ -1072,7 +1058,8 @@ def read_band_image_as_leaf_patches(
         candidates.sort(key=lambda x: x[0], reverse=True)
 
     patches = [
-        extract_patch(arr, top, left, patch_h, patch_w) for _, top, left in candidates
+        extract_patch(arr, top, left, patch_h, patch_w)
+        for _, top, left in candidates
     ]
 
     duplicated_count = 0
@@ -1207,9 +1194,6 @@ class MultiSpectralCSVPatchDataset(Dataset):
         normalization_sample_pixels_per_image=20000,
         normalization_lower_percentile=1.0,
         normalization_upper_percentile=99.0,
-        # NEW
-        cache_patches=False,
-        clone_cached_items=True,
     ):
         self.csv_path = csv_path
         self.root_dir = root_dir if root_dir is not None else ""
@@ -1261,9 +1245,7 @@ class MultiSpectralCSVPatchDataset(Dataset):
         )
         self.normalization_output_clip = normalization_output_clip
         self.normalization_use_leaf_mask = bool(normalization_use_leaf_mask)
-        self.normalization_sample_pixels_per_image = (
-            normalization_sample_pixels_per_image
-        )
+        self.normalization_sample_pixels_per_image = normalization_sample_pixels_per_image
         self.normalization_lower_percentile = float(normalization_lower_percentile)
         self.normalization_upper_percentile = float(normalization_upper_percentile)
 
@@ -1329,13 +1311,6 @@ class MultiSpectralCSVPatchDataset(Dataset):
         self.random_seed = int(random_seed)
         self.return_debug = bool(return_debug)
 
-        # CPU RAM cache for already-generated samples.
-        # This caches the output of __getitem__, after patch extraction.
-        # It does NOT cache tensors on GPU.
-        self.cache_patches = bool(cache_patches)
-        self.clone_cached_items = bool(clone_cached_items)
-        self._patch_cache = {}
-
         if self.min_patches_per_band < 10:
             warnings.warn(
                 f"min_patches_per_band={self.min_patches_per_band}. "
@@ -1348,11 +1323,6 @@ class MultiSpectralCSVPatchDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, index):
-        index = int(index)
-
-        if self.cache_patches and index in self._patch_cache:
-            return self._clone_cached_sample(self._patch_cache[index])
-
         row = self.df.iloc[index]
         stage_label = str(row["Stages"]).strip().lower()
 
@@ -1414,80 +1384,9 @@ class MultiSpectralCSVPatchDataset(Dataset):
         spec = torch.from_numpy(self.spectral_np[index]).float()
 
         if self.return_debug:
-            sample = (band_patches, spec, debug)
-        else:
-            sample = (band_patches, spec)
+            return band_patches, spec, debug
 
-        if self.cache_patches:
-            # Store CPU tensors in RAM.
-            # Do not move these tensors to GPU here.
-            self._patch_cache[index] = self._clone_cached_sample(sample)
-
-        return self._clone_cached_sample(sample)
-
-    def _clone_band_patches(self, band_patches):
-        """
-        Clone cached tensors before returning them.
-
-        This prevents accidental in-place modifications from corrupting the cache.
-        It costs some CPU time, but is safer.
-        """
-        return {
-            band_name: patches.clone() for band_name, patches in band_patches.items()
-        }
-
-    def _clone_debug(self, debug):
-        """
-        Shallow-copy debug dictionary.
-
-        Debug only contains simple Python values in the current implementation,
-        so a shallow copy is enough.
-        """
-        if debug is None:
-            return None
-
-        out = dict(debug)
-        if "bands" in out:
-            out["bands"] = {
-                band_name: dict(band_debug)
-                for band_name, band_debug in out["bands"].items()
-            }
-        return out
-
-    def _clone_cached_sample(self, cached):
-        """
-        Return a safe copy of a cached sample.
-
-        cached can be:
-            (band_patches, spec)
-        or:
-            (band_patches, spec, debug)
-        """
-        if not self.clone_cached_items:
-            return cached
-
-        if len(cached) == 3:
-            band_patches, spec, debug = cached
-            return (
-                self._clone_band_patches(band_patches),
-                spec.clone(),
-                self._clone_debug(debug),
-            )
-
-        band_patches, spec = cached
-        return self._clone_band_patches(band_patches), spec.clone()
-
-    def clear_cache(self):
-        """
-        Manually clear RAM patch cache.
-        """
-        self._patch_cache.clear()
-
-    def cache_size(self):
-        """
-        Number of samples currently cached in this Dataset instance.
-        """
-        return len(self._patch_cache)
+        return band_patches, spec
 
 
 # -------------------------------------------------------------------------
@@ -1567,12 +1466,7 @@ if __name__ == "__main__":
 
         for band_name in ["blue", "green", "red", "nir", "red_edge"]:
             patches = band_dict[band_name][0]
-            print(
-                f"{band_name:8s} patches:",
-                patches.shape,
-                patches.min().item(),
-                patches.max().item(),
-            )
+            print(f"{band_name:8s} patches:", patches.shape, patches.min().item(), patches.max().item())
 
         print("debug sample:")
         sample_debug = debug[0]

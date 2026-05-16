@@ -304,24 +304,12 @@ def validate(gen, val_loader, device, use_amp, physics_loss_fn, sam_fn):
             metrics["val_l1"] += float(l1.detach().cpu())
             metrics["val_rmse"] += float(rmse.detach().cpu())
             metrics["val_sam_rad"] += float(sam.detach().cpu())
-            metrics["val_physics_total"] += float(
-                physics_losses["total"].detach().cpu()
-            )
-            metrics["val_spectral_l1"] += float(
-                physics_losses["spectral_l1"].detach().cpu()
-            )
-            metrics["val_weighted_l1"] += float(
-                physics_losses["weighted_l1"].detach().cpu()
-            )
-            metrics["val_param_penalty"] += float(
-                physics_losses["param_penalty"].detach().cpu()
-            )
-            metrics["val_smoothness"] += float(
-                physics_losses["smoothness"].detach().cpu()
-            )
-            metrics["val_derivative"] += float(
-                physics_losses["derivative"].detach().cpu()
-            )
+            metrics["val_physics_total"] += float(physics_losses["total"].detach().cpu())
+            metrics["val_spectral_l1"] += float(physics_losses["spectral_l1"].detach().cpu())
+            metrics["val_weighted_l1"] += float(physics_losses["weighted_l1"].detach().cpu())
+            metrics["val_param_penalty"] += float(physics_losses["param_penalty"].detach().cpu())
+            metrics["val_smoothness"] += float(physics_losses["smoothness"].detach().cpu())
+            metrics["val_derivative"] += float(physics_losses["derivative"].detach().cpu())
 
             n_batches += 1
 
@@ -446,21 +434,11 @@ def train_one_epoch(
         epoch_metrics["g_loss"] += float(G_loss.detach().cpu())
         epoch_metrics["g_adv"] += float(G_adv.detach().cpu())
         epoch_metrics["g_physics"] += float(G_physics.detach().cpu())
-        epoch_metrics["g_spectral_l1"] += float(
-            physics_components["spectral_l1"].detach().cpu()
-        )
-        epoch_metrics["g_weighted_l1"] += float(
-            physics_components["weighted_l1"].detach().cpu()
-        )
-        epoch_metrics["g_param_penalty"] += float(
-            physics_components["param_penalty"].detach().cpu()
-        )
-        epoch_metrics["g_smoothness"] += float(
-            physics_components["smoothness"].detach().cpu()
-        )
-        epoch_metrics["g_derivative"] += float(
-            physics_components["derivative"].detach().cpu()
-        )
+        epoch_metrics["g_spectral_l1"] += float(physics_components["spectral_l1"].detach().cpu())
+        epoch_metrics["g_weighted_l1"] += float(physics_components["weighted_l1"].detach().cpu())
+        epoch_metrics["g_param_penalty"] += float(physics_components["param_penalty"].detach().cpu())
+        epoch_metrics["g_smoothness"] += float(physics_components["smoothness"].detach().cpu())
+        epoch_metrics["g_derivative"] += float(physics_components["derivative"].detach().cpu())
         n_batches += 1
 
         if idx % 5 == 0:
@@ -603,9 +581,7 @@ def main():
     normalization_method = getattr(config, "IMAGE_NORMALIZATION_METHOD", "none")
     normalization_output_clip = getattr(config, "IMAGE_NORMALIZATION_OUTPUT_CLIP", None)
     compute_normalization_stats = getattr(config, "COMPUTE_NORMALIZATION_STATS", False)
-    recompute_normalization_stats = getattr(
-        config, "RECOMPUTE_NORMALIZATION_STATS", True
-    )
+    recompute_normalization_stats = getattr(config, "RECOMPUTE_NORMALIZATION_STATS", True)
     normalization_stats_path = getattr(config, "NORMALIZATION_STATS_PATH", None)
 
     normalization_stats = None
@@ -646,30 +622,15 @@ def main():
         normalization_scope=normalization_scope,
         normalization_method=normalization_method,
         normalization_output_clip=normalization_output_clip,
-        normalization_use_leaf_mask=getattr(
-            config, "NORMALIZATION_USE_LEAF_MASK", True
-        ),
-        normalization_sample_pixels_per_image=getattr(
-            config, "NORMALIZATION_SAMPLE_PIXELS_PER_IMAGE", 20000
-        ),
-        normalization_lower_percentile=getattr(
-            config, "NORMALIZATION_LOWER_PERCENTILE", 1.0
-        ),
-        normalization_upper_percentile=getattr(
-            config, "NORMALIZATION_UPPER_PERCENTILE", 99.0
-        ),
-        # NEW
-        cache_patches=True,
-        clone_cached_items=False,
+        normalization_use_leaf_mask=getattr(config, "NORMALIZATION_USE_LEAF_MASK", True),
+        normalization_sample_pixels_per_image=getattr(config, "NORMALIZATION_SAMPLE_PIXELS_PER_IMAGE", 20000),
+        normalization_lower_percentile=getattr(config, "NORMALIZATION_LOWER_PERCENTILE", 1.0),
+        normalization_upper_percentile=getattr(config, "NORMALIZATION_UPPER_PERCENTILE", 99.0),
     )
 
     normalization_stats = train_dataset.normalization_stats
 
-    if (
-        normalization_scope != "none"
-        and normalization_stats_path is not None
-        and normalization_stats is not None
-    ):
+    if normalization_scope != "none" and normalization_stats_path is not None and normalization_stats is not None:
         save_normalization_stats(normalization_stats, normalization_stats_path)
         print(f"Saved normalization stats: {expand_path(normalization_stats_path)}")
 
@@ -687,9 +648,7 @@ def main():
 
     val_dataset = MultiSpectralCSVPatchDataset(
         csv_path=config.VAL_CSV,
-        root_dir=config.TRAIN_IMG_DIR
-        if config.VAL_IMG_DIR is None
-        else config.VAL_IMG_DIR,
+        root_dir=config.TRAIN_IMG_DIR if config.VAL_IMG_DIR is None else config.VAL_IMG_DIR,
         species=config.SPECIES_FILTER,
         stage=config.STAGE_FILTER,
         patch_h=config.PATCH_H,
@@ -709,8 +668,6 @@ def main():
         normalization_scope=normalization_scope,
         normalization_method=normalization_method,
         normalization_output_clip=normalization_output_clip,
-        cache_patches=True,
-        clone_cached_items=False,
     )
 
     val_loader = DataLoader(
@@ -839,9 +796,7 @@ def main():
         print("Validation:")
         print(f"  L1:            {val_metrics['val_l1']:.6f}")
         print(f"  RMSE:          {val_metrics['val_rmse']:.6f}")
-        print(
-            f"  SAM:           {val_metrics['val_sam_deg']:.2f} deg ({val_metrics['val_sam_rad']:.4f} rad)"
-        )
+        print(f"  SAM:           {val_metrics['val_sam_deg']:.2f} deg ({val_metrics['val_sam_rad']:.4f} rad)")
         print(f"  Physics total: {val_metrics['val_physics_total']:.6f}")
         print(f"  Param penalty: {val_metrics['val_param_penalty']:.6f}")
 

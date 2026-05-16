@@ -14,22 +14,21 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # ============================================================
 # Data Paths (CSV-based multispectral)
 # ============================================================
-TRAIN_CSV = "./Data/dataset_splits_70_20_10/avocado_train.csv"
-VAL_CSV = "./Data/dataset_splits_70_20_10/avocado_val.csv"
+TRAIN_CSV = "./Data/dataset_splits_70_20_10/avocado_train_minimal.csv"
+VAL_CSV = "./Data/dataset_splits_70_20_10/avocado_train_minimal.csv"
 
 # Root directory where the band images referenced in the CSV live.
 TRAIN_IMG_DIR = "/home/usr3/Data/EstradaDataset/Avocado/Multispectral Images/"
 VAL_IMG_DIR = TRAIN_IMG_DIR
 
-
-STAGE_FILTER = "dry"
 # Output folders / files. Tilde is expanded by the training script.
-RESULTS_DIR = "~/Results/pix2spectral/dry"
+RESULTS_DIR = "~/Results/pix2spectral"
 OUTDIR_PLOT = os.path.join(RESULTS_DIR, "plots")
 
 # Optional filtering.
 # Use STAGE_FILTER="all" or None to train with all dehydration stages.
 SPECIES_FILTER = "Avocado"
+STAGE_FILTER = "all"
 
 # ============================================================
 # Patch extraction
@@ -38,13 +37,13 @@ PATCH_H = 32
 PATCH_W = 32
 
 # Smaller stride = more candidate patches.
-STRIDE_H = 16
-STRIDE_W = 16
+STRIDE_H = 4
+STRIDE_W = 4
 
 BLACK_THR = 0.0
 LEAF_COVERAGE = 0.90
 MIN_PATCHES = 10
-MAX_PATCHES_PER_BAND = 300
+MAX_PATCHES_PER_BAND = None
 MASK_METHOD = "contour"
 BORDER_ERODE_PX = 2
 
@@ -64,7 +63,7 @@ VAL_STRIDE_W = PATCH_W
 #   "zscore"        -> (x - mean) / std
 #   "robust_zscore" -> clip to percentiles, then (x - mean) / std
 #   "minmax"        -> clip to percentiles, then scale to [0, 1]
-IMAGE_NORMALIZATION_SCOPE = "global_band"
+IMAGE_NORMALIZATION_SCOPE = "stage_band"
 IMAGE_NORMALIZATION_METHOD = "robust_zscore"
 
 # Recommended for z-score modes. For minmax, use (0.0, 1.0).
@@ -86,8 +85,8 @@ NORMALIZATION_UPPER_PERCENTILE = 99.0
 # ============================================================
 LEARNING_RATE = 2e-4
 BATCH_SIZE = 2
-NUM_WORKERS = 0
-NUM_EPOCHS = 300
+NUM_WORKERS = 4
+NUM_EPOCHS = 6000
 
 # Loss weights
 L1_LAMBDA = 100
@@ -110,12 +109,12 @@ PROSPECT_PARAM_MAXS = [300.0, 1500.0, 100.0, 100.0, 1.0, 1.0, 30.0]
 LOAD_MODEL = True
 SAVE_MODEL = True
 
-CHECKPOINT_DISC = os.path.join(RESULTS_DIR, "disc_last.pth.tar")
-CHECKPOINT_GEN = os.path.join(RESULTS_DIR, "gen_last.pth.tar")
+CHECKPOINT_DISC = os.path.join(RESULTS_DIR, "disc_all_last.pth.tar")
+CHECKPOINT_GEN = os.path.join(RESULTS_DIR, "gen_all_last.pth.tar")
 
-BEST_CHECKPOINT_DISC = os.path.join(RESULTS_DIR, "disc_best.pth.tar")
-BEST_CHECKPOINT_GEN = os.path.join(RESULTS_DIR, "gen_best.pth.tar")
-FINAL_CHECKPOINT_GEN = os.path.join(RESULTS_DIR, "gen_final_best.pth.tar")
+BEST_CHECKPOINT_DISC = os.path.join(RESULTS_DIR, "disc_all_best.pth.tar")
+BEST_CHECKPOINT_GEN = os.path.join(RESULTS_DIR, "gen_all_best.pth.tar")
+FINAL_CHECKPOINT_GEN = os.path.join(RESULTS_DIR, "gen_all_final_best.pth.tar")
 
 RESUME_FROM_BEST = False
 
@@ -124,11 +123,11 @@ RESUME_FROM_BEST = False
 # ============================================================
 # Recommended while debugging numerical stability: "val_l1".
 # After val_physics_total is confirmed finite, you can switch to "val_physics_total".
-BEST_MODEL_METRIC = "val_physics_total"
+BEST_MODEL_METRIC = "val_l1"
 BEST_MODEL_MODE = "min"
 EARLY_STOP_MIN_DELTA = 1e-6
-EARLY_STOP_PATIENCE = 100
-EARLY_STOP_MIN_EPOCHS = 50
+EARLY_STOP_PATIENCE = 1000
+EARLY_STOP_MIN_EPOCHS = 500
 EARLY_STOP_ENABLED = True
 
 # ============================================================
@@ -136,4 +135,4 @@ EARLY_STOP_ENABLED = True
 # ============================================================
 SAVE_INTERVAL = 5
 PLOT_INTERVAL = 1
-LOG_FILE = os.path.join(RESULTS_DIR, "training_log.json")
+LOG_FILE = os.path.join(RESULTS_DIR, "training_all_log.json")
