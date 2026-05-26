@@ -1,0 +1,60 @@
+# Test-set evaluation script for pix2spectral
+
+## Per-stage checkpoints
+
+This assumes checkpoints are named like:
+
+    ~/Results/pix2spectral/avocado_fresh_gen_best.pth.tar
+    ~/Results/pix2spectral/avocado_stage1_gen_best.pth.tar
+    ...
+    ~/Results/pix2spectral/avocado_dry_gen_best.pth.tar
+
+Run:
+
+python evaluate_test_set.py \
+    --test-csv ./Data/dataset_splits_70_20_10/avocado_test_minimal.csv \
+    --train-csv ./Data/dataset_splits_70_20_10/avocado_train_minimal.csv \
+    --img-dir "/home/usr3/Data/EstradaDataset/Avocado/Multispectral Images/" \
+    --results-dir ~/Results/pix2spectral \
+    --experiment-prefix avocado \
+    --model-mode per-stage \
+    --stages fresh stage1 stage2 stage3 dry
+
+## Single all-stage checkpoint
+
+python evaluate_test_set.py \
+    --test-csv ./Data/dataset_splits_70_20_10/avocado_test_minimal.csv \
+    --train-csv ./Data/dataset_splits_70_20_10/avocado_train_minimal.csv \
+    --img-dir "/home/usr3/Data/EstradaDataset/Avocado/Multispectral Images/" \
+    --model-mode single \
+    --checkpoint ~/Results/pix2spectral/avocado_all_gen_best.pth.tar \
+    --stages fresh stage1 stage2 stage3 dry
+
+## If your improved files are named differently
+
+python evaluate_test_set.py \
+    --dataset-module dataset_updated \
+    --generator-module generator_model_improved \
+    ...
+
+## Outputs
+
+The script creates:
+
+    test_metrics_all_stages.csv
+    test_metrics_summary_by_stage.csv
+    test_metrics_fresh.csv
+    test_metrics_stage1.csv
+    ...
+    qualitative_spectra_by_stage.png
+
+Per-sample metrics include:
+
+    RMSE
+    MAE
+    relative RMSE
+    mean relative error
+    median relative error
+    maximum relative error
+    SAM radians
+    SAM degrees

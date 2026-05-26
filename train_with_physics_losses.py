@@ -17,7 +17,7 @@ from dataset import (
     load_normalization_stats,
 )
 from generator_model import MultiSpectralPatchToProspectGenerator
-from discriminator_model import SpectralDiscriminator1D
+from discriminator_model import SegmentedSpectralDiscriminator1D
 
 from physics_losses import (
     PhysicsInformedLoss,
@@ -515,12 +515,36 @@ def main():
     # ============================================================
     # Initialize models
     # ============================================================
-    disc = SpectralDiscriminator1D(in_channels=1, use_bn=False).to(device)
+    disc = SegmentedSpectralDiscriminator1D(
+        in_channels=1,
+        features=config.DISCRIMINATOR_FEATURES,
+        use_bn=False,
+        wavelength_min=config.WAVELENGTH_MIN,
+        wavelength_max=config.WAVELENGTH_MAX,
+        wavelength_count=config.WAVELENGTH_COUNT,
+        spectral_segments=config.SPECTRAL_SEGMENTS,
+        mode=config.DISCRIMINATOR_MODE,
+        use_wavelength_channel=config.USE_WAVELENGTH_CHANNEL,
+        use_spectral_norm=config.USE_SPECTRAL_NORM,
+    ).to(device)
 
     gen = MultiSpectralPatchToProspectGenerator(
         bands=["blue", "green", "red", "nir", "red_edge"],
         base_features=config.BASE_FEATURES,
         embed_dim=config.EMBED_DIM,
+        mins=config.PROSPECT_PARAM_MINS,
+        maxs=config.PROSPECT_PARAM_MAXS,
+        wavelength_min=config.WAVELENGTH_MIN,
+        wavelength_max=config.WAVELENGTH_MAX,
+        wavelength_count=config.WAVELENGTH_COUNT,
+        spectral_segments=config.SPECTRAL_SEGMENTS,
+        use_segmented_prospect=config.USE_SEGMENTED_PROSPECT,
+        use_segment_residual=config.USE_SEGMENT_RESIDUAL,
+        segment_residual_scale=config.SEGMENT_RESIDUAL_SCALE,
+        patch_encoder_type=config.PATCH_ENCODER_TYPE,
+        pooling_type=config.POOLING_TYPE,
+        band_encoder_mode=config.BAND_ENCODER_MODE,
+        norm_type=config.NORM_TYPE,
     ).to(device)
 
     opt_disc = optim.Adam(
@@ -545,6 +569,9 @@ def main():
         lambda_param_penalty=0.1,
         lambda_smoothness=0.01,
         lambda_derivative=0.01,
+        lambda_segment_continuity=getattr(config, "LAMBDA_SEGMENT_CONTINUITY", 0.1),
+        boundary_indices=getattr(gen, "boundary_indices", None),
+        continuity_width=2,
     ).to(device)
 
     adv_loss_fn = AdversarialLoss(loss_type="lsgan")

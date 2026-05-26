@@ -91,9 +91,7 @@ def normalize_segments(
     out = sorted(out, key=lambda x: x[0])
     for i in range(1, len(out)):
         if out[i][0] < out[i - 1][1]:
-            raise ValueError(
-                f"Overlapping spectral segments: {out[i - 1]} and {out[i]}."
-            )
+            raise ValueError(f"Overlapping spectral segments: {out[i - 1]} and {out[i]}.")
 
     return out
 
@@ -254,34 +252,26 @@ class ProspectDLayerAnalytic(torch.autograd.Function):
         if not torch.isfinite(params).all():
             raise FloatingPointError("Non-finite PROSPECT parameters entering forward.")
 
-        sanitize = bool(
-            getattr(
-                ProspectDLayerAnalytic,
-                "sanitize_nonfinite",
-                PROSPECT_SANITIZE_NONFINITE_DEFAULT,
-            )
-        )
-        rho_min = float(
-            getattr(
-                ProspectDLayerAnalytic,
-                "rho_min",
-                PROSPECT_RHO_MIN_DEFAULT,
-            )
-        )
-        rho_max = float(
-            getattr(
-                ProspectDLayerAnalytic,
-                "rho_max",
-                PROSPECT_RHO_MAX_DEFAULT,
-            )
-        )
-        jac_clip = float(
-            getattr(
-                ProspectDLayerAnalytic,
-                "jac_clip",
-                PROSPECT_JAC_CLIP_DEFAULT,
-            )
-        )
+        sanitize = bool(getattr(
+            ProspectDLayerAnalytic,
+            "sanitize_nonfinite",
+            PROSPECT_SANITIZE_NONFINITE_DEFAULT,
+        ))
+        rho_min = float(getattr(
+            ProspectDLayerAnalytic,
+            "rho_min",
+            PROSPECT_RHO_MIN_DEFAULT,
+        ))
+        rho_max = float(getattr(
+            ProspectDLayerAnalytic,
+            "rho_max",
+            PROSPECT_RHO_MAX_DEFAULT,
+        ))
+        jac_clip = float(getattr(
+            ProspectDLayerAnalytic,
+            "jac_clip",
+            PROSPECT_JAC_CLIP_DEFAULT,
+        ))
 
         p_np = params.detach().cpu().numpy().astype(np.float64)
         B = p_np.shape[0]
@@ -324,7 +314,8 @@ class ProspectDLayerAnalytic(torch.autograd.Function):
 
                 if not sanitize:
                     raise FloatingPointError(
-                        f"Non-finite PROSPECT output. Details: {bad_items[-1]}"
+                        "Non-finite PROSPECT output. "
+                        f"Details: {bad_items[-1]}"
                     )
 
                 # Safe fallback:
@@ -369,7 +360,10 @@ class ProspectDLayerAnalytic(torch.autograd.Function):
         if bad_items:
             # Print only once per forward call. This is intentionally a warning,
             # not an exception, when sanitize=True.
-            print(f"[WARN] Sanitized non-finite PROSPECT output(s): {bad_items[:3]}")
+            print(
+                "[WARN] Sanitized non-finite PROSPECT output(s): "
+                f"{bad_items[:3]}"
+            )
 
         rho_np = np.stack(rho_list, axis=0).astype(np.float32)
         J_np = np.stack(J_list, axis=0).astype(np.float32)
@@ -698,9 +692,7 @@ class AttentionStatsPool(nn.Module):
 
     def forward(self, E: torch.Tensor) -> torch.Tensor:
         if E.numel() == 0:
-            return torch.zeros(
-                self.proj[0].out_features, device=E.device, dtype=E.dtype
-            )
+            return torch.zeros(self.proj[0].out_features, device=E.device, dtype=E.dtype)
 
         if E.shape[0] == 1:
             mean = E[0]
@@ -820,9 +812,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
             )
             self._segment_buffer_names.append(name)
 
-        boundaries = boundary_indices_from_segments(
-            wavelengths_np, self.spectral_segments
-        )
+        boundaries = boundary_indices_from_segments(wavelengths_np, self.spectral_segments)
         self.register_buffer(
             "boundary_indices",
             torch.as_tensor(boundaries, dtype=torch.long),
@@ -862,9 +852,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
                 "Expected 'shared' or 'separate'."
             )
 
-        self.pool = nn.ModuleDict(
-            {b: build_pool(pooling_type, embed_dim) for b in self.bands}
-        )
+        self.pool = nn.ModuleDict({b: build_pool(pooling_type, embed_dim) for b in self.bands})
 
         fused_dim = embed_dim * len(self.bands)
 
@@ -908,9 +896,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
         assert self.patch_encoders is not None
         return self.patch_encoders[band_name]
 
-    def _encode_single_sample(
-        self, band_patches: Dict[str, torch.Tensor]
-    ) -> torch.Tensor:
+    def _encode_single_sample(self, band_patches: Dict[str, torch.Tensor]) -> torch.Tensor:
         """Return fused descriptor [1, fused_dim] for one sample."""
         vecs = []
         for b in self.bands:
@@ -921,9 +907,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
         fused = torch.cat(vecs, dim=0).unsqueeze(0)
         return fused
 
-    def _encode_batch_list(
-        self, batch_band_dict: Dict[str, List[torch.Tensor]]
-    ) -> torch.Tensor:
+    def _encode_batch_list(self, batch_band_dict: Dict[str, List[torch.Tensor]]) -> torch.Tensor:
         """
         Efficiently encode a collated batch where each band maps to a list of
         variable-length patch tensors.
@@ -965,9 +949,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
             [B, S, L]
         """
         if prospect_full.dim() != 3:
-            raise ValueError(
-                f"Expected prospect_full [B,S,L], got {prospect_full.shape}"
-            )
+            raise ValueError(f"Expected prospect_full [B,S,L], got {prospect_full.shape}")
 
         pieces = []
         for i, idx in enumerate(self.segment_indices()):
@@ -976,9 +958,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
 
         return torch.cat(pieces, dim=1)
 
-    def forward_from_fused(
-        self, fused: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward_from_fused(self, fused: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Convert fused patch descriptors to spectrum and PROSPECT parameters.
 
@@ -1029,9 +1009,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
 
         return y_fake, p_params
 
-    def segment_boundary_loss(
-        self, y: torch.Tensor, reduction: str = "mean"
-    ) -> torch.Tensor:
+    def segment_boundary_loss(self, y: torch.Tensor, reduction: str = "mean") -> torch.Tensor:
         """
         Penalize discontinuities at spectral segment boundaries.
 
@@ -1062,9 +1040,7 @@ class MultiSpectralPatchToProspectGenerator(nn.Module):
             return out.sum()
         return out
 
-    def forward(
-        self, band_patches: Dict[str, torch.Tensor]
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, band_patches: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         fused = self._encode_single_sample(band_patches)
         y_fake, p_params = self.forward_from_fused(fused)
 
@@ -1167,9 +1143,7 @@ def check_prospect_bounds_safety(mins=None, maxs=None, n_random=256, seed=42):
     for i in range(int(n_random)):
         p = mins + rng.random(7) * (maxs - mins)
         with np.errstate(all="ignore"):
-            wl, rho, tau, Delta_rho, Delta_tau = prospect_jacobian.JacProspectD(
-                *map(float, p)
-            )
+            wl, rho, tau, Delta_rho, Delta_tau = prospect_jacobian.JacProspectD(*map(float, p))
         if (not np.isfinite(rho).all()) or (not np.isfinite(Delta_rho).all()):
             bad.append(
                 {

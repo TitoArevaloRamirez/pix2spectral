@@ -231,9 +231,7 @@ def _ensure_2d_spectrum(y: torch.Tensor, name: str) -> torch.Tensor:
         y = y.squeeze(1)
 
     if y.dim() != 2:
-        raise ValueError(
-            f"{name} must be [B,L], [L], or [B,1,L], got {tuple(y.shape)}."
-        )
+        raise ValueError(f"{name} must be [B,L], [L], or [B,1,L], got {tuple(y.shape)}.")
 
     return y
 
@@ -324,11 +322,7 @@ class PhysicsInformedLoss(nn.Module):
         else:
             self.wavelength_weights = None
 
-        if (
-            boundary_indices is None
-            and wavelengths is not None
-            and spectral_segments is not None
-        ):
+        if boundary_indices is None and wavelengths is not None and spectral_segments is not None:
             if torch.is_tensor(wavelengths):
                 wl_np = wavelengths.detach().cpu().numpy()
             else:
@@ -408,9 +402,7 @@ class PhysicsInformedLoss(nn.Module):
 
         # 2. Wavelength-weighted L1 loss.
         if self.wavelength_weights is not None:
-            weights = self.wavelength_weights.to(
-                device=y_fake.device, dtype=y_fake.dtype
-            )
+            weights = self.wavelength_weights.to(device=y_fake.device, dtype=y_fake.dtype)
             if weights.numel() != y_fake.shape[1]:
                 raise ValueError(
                     f"wavelength_weights length {weights.numel()} does not match "
@@ -465,12 +457,8 @@ class PhysicsInformedLoss(nn.Module):
         """
         params_flat = flatten_segmented_params(params)
 
-        mins = self.param_bounds.mins.to(
-            device=params_flat.device, dtype=params_flat.dtype
-        )
-        maxs = self.param_bounds.maxs.to(
-            device=params_flat.device, dtype=params_flat.dtype
-        )
+        mins = self.param_bounds.mins.to(device=params_flat.device, dtype=params_flat.dtype)
+        maxs = self.param_bounds.maxs.to(device=params_flat.device, dtype=params_flat.dtype)
 
         below_min = torch.relu(mins.view(1, -1) - params_flat)
         above_max = torch.relu(params_flat - maxs.view(1, -1))
@@ -481,9 +469,7 @@ class PhysicsInformedLoss(nn.Module):
 
         return penalty
 
-    def _spectral_smoothness(
-        self, y_fake: torch.Tensor, y_real: torch.Tensor
-    ) -> torch.Tensor:
+    def _spectral_smoothness(self, y_fake: torch.Tensor, y_real: torch.Tensor) -> torch.Tensor:
         """
         Penalize fake spectra that are much rougher than real spectra.
 
@@ -498,9 +484,7 @@ class PhysicsInformedLoss(nn.Module):
 
         return torch.mean(torch.relu(diff_fake - diff_real * self.roughness_factor))
 
-    def _derivative_consistency(
-        self, y_fake: torch.Tensor, y_real: torch.Tensor
-    ) -> torch.Tensor:
+    def _derivative_consistency(self, y_fake: torch.Tensor, y_real: torch.Tensor) -> torch.Tensor:
         """
         Match the first derivative of generated and real spectra.
 
@@ -661,13 +645,9 @@ class AdversarialLoss(nn.Module):
         elif loss_type == "wgan":
             self.criterion = None
         else:
-            raise ValueError(
-                f"Unknown loss_type={loss_type}. Expected lsgan, vanilla, or wgan."
-            )
+            raise ValueError(f"Unknown loss_type={loss_type}. Expected lsgan, vanilla, or wgan.")
 
-    def discriminator_loss(
-        self, D_real: TensorOrOutputs, D_fake: TensorOrOutputs
-    ) -> torch.Tensor:
+    def discriminator_loss(self, D_real: TensorOrOutputs, D_fake: TensorOrOutputs) -> torch.Tensor:
         real_logits = _collect_logits(D_real)
         fake_logits = _collect_logits(D_fake)
 
@@ -765,11 +745,7 @@ class SegmentContinuityLoss(nn.Module):
     ):
         super().__init__()
 
-        if (
-            boundary_indices is None
-            and wavelengths is not None
-            and spectral_segments is not None
-        ):
+        if boundary_indices is None and wavelengths is not None and spectral_segments is not None:
             if torch.is_tensor(wavelengths):
                 wl_np = wavelengths.detach().cpu().numpy()
             else:
@@ -800,8 +776,8 @@ class SegmentContinuityLoss(nn.Module):
                 continue
 
             w = max(1, self.continuity_width)
-            left = y[:, max(0, idx - w) : idx].mean(dim=1)
-            right = y[:, idx : min(L, idx + w)].mean(dim=1)
+            left = y[:, max(0, idx - w):idx].mean(dim=1)
+            right = y[:, idx:min(L, idx + w)].mean(dim=1)
             losses.append((right - left).pow(2))
 
         if len(losses) == 0:
@@ -872,23 +848,15 @@ if __name__ == "__main__":
 
     D_real = torch.randn(B, 1, 128)
     D_fake = torch.randn(B, 1, 128)
-    D_real_dict = {
-        "global": D_real,
-        "segments": [torch.randn(B, 1, 32), torch.randn(B, 1, 16)],
-    }
-    D_fake_dict = {
-        "global": D_fake,
-        "segments": [torch.randn(B, 1, 32), torch.randn(B, 1, 16)],
-    }
+    D_real_dict = {"global": D_real, "segments": [torch.randn(B, 1, 32), torch.randn(B, 1, 16)]}
+    D_fake_dict = {"global": D_fake, "segments": [torch.randn(B, 1, 32), torch.randn(B, 1, 16)]}
 
     for loss_type in ["lsgan", "vanilla", "wgan"]:
         adv = AdversarialLoss(loss_type=loss_type)
         print(f"\n{loss_type.upper()}:")
         print(f"  tensor D loss: {float(adv.discriminator_loss(D_real, D_fake)):.6f}")
         print(f"  tensor G loss: {float(adv.generator_loss(D_fake)):.6f}")
-        print(
-            f"  dict   D loss: {float(adv.discriminator_loss(D_real_dict, D_fake_dict)):.6f}"
-        )
+        print(f"  dict   D loss: {float(adv.discriminator_loss(D_real_dict, D_fake_dict)):.6f}")
         print(f"  dict   G loss: {float(adv.generator_loss(D_fake_dict)):.6f}")
 
     sam = SpectralAngleMapper()(y_fake, y_real)
