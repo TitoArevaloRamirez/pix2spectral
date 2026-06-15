@@ -1,40 +1,41 @@
 #!/usr/bin/env python3
 """
-Evaluate trained pix2spectral generator models on a held-out testing set.
+Evaluate pix2spectral generators on a held-out testing set and compare
+discriminator modes with small-test-set-friendly outputs.
 
-Outputs:
-  1. CSV with per-sample quantitative metrics:
-       stage, sample index, RMSE, MAE, SAM radians/degrees, relative error, etc.
+This version assumes experiments are stored as:
 
-  2. Qualitative figure with 5 subplots, one per dehydration stage:
-       - average real spectral signature: black solid line
-       - real standard deviation: dark gray shaded region
-       - generated/estimated spectra: thin black patterned lines
+    ~/Results/pix2spectral/
+        avocado_global/
+        avocado_segmented/
+        avocado_global_plus_segmented/
 
-Typical usage, per-stage trained models from run_all_stage_experiments.py:
+Expected checkpoints:
 
-    python evaluate_test_set.py \
-        --test-csv ./Data/dataset_splits_70_20_10/avocado_test_minimal.csv \
-        --train-csv ./Data/dataset_splits_70_20_10/avocado_train_minimal.csv \
+    avocado_<stage>_gen_best.pth.tar
+
+Main outputs:
+  - Per-sample metrics CSV.
+  - Generated spectra CSV.
+  - Real spectra CSV.
+  - Mean/std model-comparison tables for RMSE, MAE, bias, MRE.
+  - Qualitative spectra plots.
+  - Wavelength-wise reflectance error diagnostics:
+      bias(lambda), MAE(lambda), RMSE(lambda), MRE(lambda).
+  - Wavelength-wise SAM contribution proxy:
+      NOT true SAM per wavelength, because SAM is a vector-angle metric.
+      This proxy shows which wavelengths contribute most to angular mismatch.
+
+Example:
+    python evaluate_test_set_export_spectra.py \
+        --test-csv ~/Code/pix2spectral/Data/dataset_splits_70_20_10/avocado_test.csv \
+        --train-csv ~/Code/pix2spectral/Data/dataset_splits_70_20_10/avocado_train.csv \
         --img-dir "/home/usr3/Data/EstradaDataset/Avocado/Multispectral Images/" \
-        --results-dir ~/Results/pix2spectral \
+        --results-root ~/Results/pix2spectral \
         --experiment-prefix avocado \
-        --model-mode per-stage \
+        --experiment-dirs avocado_global avocado_segmented avocado_global_plus_segmented \
+        --mode-labels global segmented global_plus_segmented \
         --stages fresh stage1 stage2 stage3 dry
-
-Evaluate one "all stages" model on every stage:
-
-    python evaluate_test_set.py \
-        --model-mode single \
-        --checkpoint ~/Results/pix2spectral/avocado_all_gen_best.pth.tar \
-        --stages fresh stage1 stage2 stage3 dry
-
-Notes:
-  - This script evaluates the generator only.
-  - It assumes your dataset.py exposes MultiSpectralCSVPatchDataset and patch_collate_fn.
-  - It supports both old and improved generator constructors using safe fallback logic.
-  - It computes normalization statistics from TRAIN_CSV only, then applies them to TEST_CSV.
-  - It checks exact train/test image-file overlap by default to reduce leakage risk.
 """
 
 from __future__ import annotations
@@ -45,7 +46,7 @@ import inspect
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -60,10 +61,16 @@ import matplotlib.pyplot as plt
 
 
 DEFAULT_STAGES = ["fresh", "stage1", "stage2", "stage3", "dry"]
+DEFAULT_EXPERIMENT_DIRS = [
+    "avocado_global",
+    "avocado_segmented",
+    "avocado_global_plus_segmented",
+]
+DEFAULT_MODE_LABELS = ["global", "segmented", "global_plus_segmented"]
 
 
 # -------------------------------------------------------------------------
-# General helpers
+# Generic helpers
 # -------------------------------------------------------------------------
 
 
@@ -97,7 +104,6 @@ def maybe_set_config_value(cfg, name: str, value: Any):
 
 
 def filter_kwargs_for_callable(fn, kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """Keep only kwargs accepted by fn/class constructor."""
     sig = inspect.signature(fn)
     if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
         return kwargs
@@ -108,7 +114,6 @@ def filter_kwargs_for_callable(fn, kwargs: Dict[str, Any]) -> Dict[str, Any]:
 def normalize_state_dict_keys(
     state_dict: Dict[str, torch.Tensor],
 ) -> Dict[str, torch.Tensor]:
-    """Remove common wrappers such as 'module.'."""
     out = {}
     for k, v in state_dict.items():
         if k.startswith("module."):
@@ -157,6 +162,47 @@ def move_batch_bands_to_device(batch_bands, device, non_blocking=False):
     return out
 
 
+def canonical_stage_name(value):
+    s = str(value).strip().lower()
+    s = s.replace(" ", "").replace("_", "").replace("-", "")
+
+    aliases = {
+        "fresh": "fresh",
+        "f": "fresh",
+        "stage1": "stage1",
+        "stage01": "stage1",
+        "s1": "stage1",
+        "1": "stage1",
+        "stage2": "stage2",
+        "stage02": "stage2",
+        "s2": "stage2",
+        "2": "stage2",
+        "stage3": "stage3",
+        "stage03": "stage3",
+        "s3": "stage3",
+        "3": "stage3",
+        "dry": "dry",
+        "d": "dry",
+        "all": "all",
+        "any": "all",
+        "*": "all",
+        "": "all",
+        "none": "all",
+    }
+    return aliases.get(s, s)
+
+
+def safe_filename(text: str) -> str:
+    return (
+        str(text)
+        .strip()
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+        .replace(":", "_")
+    )
+
+
 # -------------------------------------------------------------------------
 # Wavelength helpers
 # -------------------------------------------------------------------------
@@ -185,6 +231,16 @@ def make_wavelengths_from_config(
     return np.linspace(wl_min, wl_max, wl_count, dtype=np.float64)
 
 
+def wavelength_columns(wavelengths: np.ndarray) -> List[str]:
+    cols = []
+    for wl in wavelengths:
+        if abs(wl - round(wl)) < 1e-8:
+            cols.append(f"wl_{int(round(wl))}")
+        else:
+            cols.append(f"wl_{wl:.2f}")
+    return cols
+
+
 # -------------------------------------------------------------------------
 # Metric helpers
 # -------------------------------------------------------------------------
@@ -196,15 +252,6 @@ def compute_sample_metrics(
     relative_error_eps: float = 1e-3,
     numerical_eps: float = 1e-12,
 ):
-    """
-    Metrics for one sample.
-
-    Notes:
-      - RMSE and MAE are in reflectance units.
-      - SAM measures spectral shape similarity and is insensitive to scale.
-      - Relative errors use max(abs(real), relative_error_eps) in the
-        denominator to avoid exploding near zero reflectance.
-    """
     y_fake = np.asarray(y_fake, dtype=np.float64).reshape(-1)
     y_real = np.asarray(y_real, dtype=np.float64).reshape(-1)
 
@@ -264,6 +311,67 @@ def compute_sample_metrics(
         "sam_deg": sam_deg,
         "relative_error_eps": float(relative_error_eps),
     }
+
+
+def compute_wavelength_error_summary(
+    y_pred: np.ndarray,
+    y_real: np.ndarray,
+    wavelengths: np.ndarray,
+    relative_error_eps: float = 1e-3,
+    numerical_eps: float = 1e-12,
+) -> pd.DataFrame:
+    """
+    Compute wavelength-wise error diagnostics.
+
+    Important:
+        True SAM is a vector angle and is not defined per wavelength.
+        The column `sam_contribution_proxy` is a diagnostic proxy:
+            abs( y_pred/||y_pred|| - y_real/||y_real|| )
+        It indicates which wavelengths contribute strongly to angular mismatch.
+    """
+    y_pred = np.asarray(y_pred, dtype=np.float64)
+    y_real = np.asarray(y_real, dtype=np.float64)
+
+    if y_pred.shape != y_real.shape:
+        raise ValueError(f"Shape mismatch: pred={y_pred.shape}, real={y_real.shape}")
+
+    err = y_pred - y_real
+    abs_err = np.abs(err)
+    denom = np.maximum(np.abs(y_real), float(relative_error_eps))
+    rel_err = abs_err / denom
+
+    pred_norm = y_pred / np.maximum(
+        np.linalg.norm(y_pred, axis=1, keepdims=True),
+        numerical_eps,
+    )
+    real_norm = y_real / np.maximum(
+        np.linalg.norm(y_real, axis=1, keepdims=True),
+        numerical_eps,
+    )
+    sam_proxy = np.abs(pred_norm - real_norm)
+
+    return pd.DataFrame(
+        {
+            "wavelength": wavelengths,
+            "bias_mean": np.mean(err, axis=0),
+            "bias_std": np.std(err, axis=0, ddof=1)
+            if err.shape[0] > 1
+            else np.zeros(err.shape[1]),
+            "mae_mean": np.mean(abs_err, axis=0),
+            "mae_std": np.std(abs_err, axis=0, ddof=1)
+            if err.shape[0] > 1
+            else np.zeros(err.shape[1]),
+            "rmse": np.sqrt(np.mean(err**2, axis=0)),
+            "mre_mean": np.mean(rel_err, axis=0),
+            "mre_std": np.std(rel_err, axis=0, ddof=1)
+            if rel_err.shape[0] > 1
+            else np.zeros(rel_err.shape[1]),
+            "sam_contribution_proxy_mean": np.mean(sam_proxy, axis=0),
+            "sam_contribution_proxy_std": np.std(sam_proxy, axis=0, ddof=1)
+            if sam_proxy.shape[0] > 1
+            else np.zeros(sam_proxy.shape[1]),
+        }
+    )
 
 
 # -------------------------------------------------------------------------
@@ -327,7 +435,6 @@ def build_dataset(
 ):
     DatasetClass = import_from_module(dataset_module, "MultiSpectralCSVPatchDataset")
 
-    # Support both the older normalization_mode API and the newer scope/method API.
     norm_scope = get_cfg_value(cfg, ["IMAGE_NORMALIZATION_SCOPE"], "stage_band")
     norm_method = get_cfg_value(cfg, ["IMAGE_NORMALIZATION_METHOD"], "robust_zscore")
     norm_mode = get_cfg_value(
@@ -368,53 +475,18 @@ def build_dataset(
 
 
 def choose_stats_stage(args, cfg, eval_stage: str) -> str:
-    """
-    Which training rows should be used to compute normalization statistics?
-
-    auto:
-      - if per-stage model and stage_band normalization: use that stage
-      - otherwise: use all stages
-    """
     if args.stats_source == "stage":
         return eval_stage
     if args.stats_source == "all":
         return "all"
 
     norm_scope = get_cfg_value(cfg, ["IMAGE_NORMALIZATION_SCOPE"], "stage_band")
-
-    if args.model_mode == "per-stage" and norm_scope == "stage_band":
+    if norm_scope == "stage_band":
         return eval_stage
-
     return "all"
 
 
-def checkpoint_for_stage(args, stage: str, cfg) -> str:
-    if args.model_mode == "single":
-        if args.checkpoint is not None:
-            return expand_path(args.checkpoint)
-
-        ckpt = get_cfg_value(cfg, ["BEST_CHECKPOINT_GEN", "CHECKPOINT_GEN"], None)
-        if ckpt is None:
-            raise ValueError(
-                "No checkpoint provided and config has no BEST_CHECKPOINT_GEN/CHECKPOINT_GEN."
-            )
-        return expand_path(ckpt)
-
-    template = args.checkpoint_template
-    if template is None:
-        template = "{results_dir}/{experiment_prefix}_{stage}_gen_best.pth.tar"
-
-    return expand_path(
-        template.format(
-            results_dir=str(Path(args.results_dir).expanduser().resolve()),
-            experiment_prefix=args.experiment_prefix,
-            stage=stage,
-        )
-    )
-
-
 def _normalize_key_value(value: Any) -> str:
-    """Normalize values for split-overlap checks."""
     if pd.isna(value):
         return ""
     value = str(value).strip().replace("\\", "/").lower()
@@ -426,24 +498,13 @@ def check_train_test_overlap(
     test_csv: str,
     key_cols: Optional[List[str]] = None,
 ):
-    """
-    Guard against train/test leakage.
-
-    The strongest practical check here is exact overlap of image filename tuples.
-    If the same multispectral file tuple appears in both train and test, evaluation
-    is contaminated.
-
-    This does not prove that different filenames are independent biological
-    samples, but it catches the common accidental split leak.
-    """
     train_csv = expand_path(train_csv)
     test_csv = expand_path(test_csv)
 
     if Path(train_csv).resolve() == Path(test_csv).resolve():
         raise ValueError(
             "Data leakage risk: train_csv and test_csv are the same file. "
-            "Pass a true held-out TEST_CSV, or use --allow-train-test-overlap "
-            "only for debugging."
+            "Pass a true held-out TEST_CSV, or use --allow-train-test-overlap only for debugging."
         )
 
     train_df = pd.read_csv(train_csv)
@@ -465,10 +526,7 @@ def check_train_test_overlap(
             for _, row in df[key_cols].iterrows()
         )
 
-    train_keys = make_keys(train_df)
-    test_keys = make_keys(test_df)
-    overlap = train_keys.intersection(test_keys)
-
+    overlap = make_keys(train_df).intersection(make_keys(test_df))
     if overlap:
         examples = list(overlap)[:5]
         raise ValueError(
@@ -485,13 +543,62 @@ def check_train_test_overlap(
 
 
 # -------------------------------------------------------------------------
+# Checkpoint/model-loop helpers
+# -------------------------------------------------------------------------
+
+
+def build_model_specs(args) -> List[Dict[str, str]]:
+    if len(args.experiment_dirs) != len(args.mode_labels):
+        raise ValueError(
+            "--experiment-dirs and --mode-labels must have the same length. "
+            f"Got {len(args.experiment_dirs)} dirs and {len(args.mode_labels)} labels."
+        )
+
+    specs = []
+    results_root = Path(args.results_root).expanduser().resolve()
+
+    for exp_dir, mode_label in zip(args.experiment_dirs, args.mode_labels):
+        exp_path = results_root / exp_dir
+        specs.append(
+            {
+                "mode_label": mode_label,
+                "experiment_dir": exp_dir,
+                "experiment_path": str(exp_path),
+            }
+        )
+
+    return specs
+
+
+def checkpoint_for_model_stage(args, model_spec: Dict[str, str], stage: str) -> str:
+    if args.checkpoint_template is None:
+        template = (
+            "{results_root}/{experiment_dir}/"
+            "{experiment_prefix}_{stage}_gen_best.pth.tar"
+        )
+    else:
+        template = args.checkpoint_template
+
+    path = template.format(
+        results_root=str(Path(args.results_root).expanduser().resolve()),
+        experiment_dir=model_spec["experiment_dir"],
+        experiment_path=model_spec["experiment_path"],
+        mode_label=model_spec["mode_label"],
+        experiment_prefix=args.experiment_prefix,
+        stage=stage,
+    )
+    return expand_path(path)
+
+
+# -------------------------------------------------------------------------
 # Evaluation
 # -------------------------------------------------------------------------
 
 
-def evaluate_one_stage(
+def evaluate_model_on_stage(
     args,
     cfg,
+    model_spec: Dict[str, str],
     stage: str,
     device: torch.device,
     normalization_stats_cache: Dict[str, Any],
@@ -503,6 +610,7 @@ def evaluate_one_stage(
     test_csv = expand_path(args.test_csv)
     img_dir = expand_path(args.img_dir)
 
+    stage = canonical_stage_name(stage)
     stats_stage = choose_stats_stage(args, cfg, stage)
 
     if stats_stage not in normalization_stats_cache:
@@ -527,7 +635,10 @@ def evaluate_one_stage(
 
     normalization_stats = normalization_stats_cache[stats_stage]
 
-    print(f"Building TEST dataset for stage='{stage}'...")
+    print(
+        f"Building TEST dataset for mode='{model_spec['mode_label']}', "
+        f"stage='{stage}'..."
+    )
     test_dataset = build_dataset(
         cfg=cfg,
         dataset_module=dataset_module,
@@ -541,7 +652,7 @@ def evaluate_one_stage(
 
     if len(test_dataset) == 0:
         print(f"Warning: no test samples found for stage='{stage}'.")
-        return [], None, None
+        return [], None, None, [], []
 
     patch_collate_fn = import_from_module(dataset_module, "patch_collate_fn")
 
@@ -554,8 +665,11 @@ def evaluate_one_stage(
         pin_memory=(device.type == "cuda"),
     )
 
-    checkpoint_path = checkpoint_for_stage(args, stage, cfg)
-    print(f"Loading generator for stage='{stage}': {checkpoint_path}")
+    checkpoint_path = checkpoint_for_model_stage(args, model_spec, stage)
+    print(
+        f"Loading generator: mode='{model_spec['mode_label']}', "
+        f"stage='{stage}', checkpoint='{checkpoint_path}'"
+    )
 
     gen = build_generator(cfg, generator_module, device)
     load_generator_checkpoint(
@@ -569,8 +683,12 @@ def evaluate_one_stage(
     rows = []
     all_real = []
     all_pred = []
+    generated_rows = []
+    real_rows = []
 
     non_blocking = device.type == "cuda"
+    wavelengths = None
+    wl_cols = None
 
     with torch.no_grad():
         for local_idx, (batch_bands, y_real) in enumerate(loader):
@@ -581,7 +699,6 @@ def evaluate_one_stage(
             )
             y_real = y_real.to(device, non_blocking=non_blocking).float()
 
-            # Evaluation in float32 is safer for physics models.
             with torch.amp.autocast("cuda", enabled=False):
                 y_fake, p_params = gen.forward_batch_list(batch_bands)
 
@@ -590,13 +707,21 @@ def evaluate_one_stage(
             y_real_np = y_real[0].detach().cpu().numpy().reshape(-1)
             y_fake_np = y_fake[0].detach().cpu().numpy().reshape(-1)
 
+            if wavelengths is None:
+                wavelengths = make_wavelengths_from_config(
+                    cfg, fallback_count=len(y_fake_np)
+                )
+                wl_cols = wavelength_columns(wavelengths)
+
             if not np.isfinite(y_real_np).all():
                 raise FloatingPointError(
-                    f"Non-finite y_real at stage={stage}, index={local_idx}"
+                    f"Non-finite y_real at mode={model_spec['mode_label']}, "
+                    f"stage={stage}, index={local_idx}"
                 )
             if not np.isfinite(y_fake_np).all():
                 raise FloatingPointError(
-                    f"Non-finite y_fake at stage={stage}, index={local_idx}"
+                    f"Non-finite y_fake at mode={model_spec['mode_label']}, "
+                    f"stage={stage}, index={local_idx}"
                 )
 
             metrics = compute_sample_metrics(
@@ -620,34 +745,135 @@ def evaluate_one_stage(
                     if col in df_row:
                         row_meta[col] = df_row[col]
 
-            row = {
+            base_meta = {
+                "discriminator_mode": model_spec["mode_label"],
+                "experiment_dir": model_spec["experiment_dir"],
                 "stage_eval": stage,
                 "sample_index_within_stage": local_idx,
                 "checkpoint": checkpoint_path,
                 **row_meta,
-                **metrics,
             }
 
-            # Store predicted PROSPECT params if compact enough.
             p_np = p_params[0].detach().cpu().numpy()
-            row["params_shape"] = str(tuple(p_np.shape))
-            row["params_json"] = json.dumps(np.asarray(p_np, dtype=float).tolist())
 
-            rows.append(row)
+            rows.append(
+                {
+                    **base_meta,
+                    **metrics,
+                    "params_shape": str(tuple(p_np.shape)),
+                    "params_json": json.dumps(np.asarray(p_np, dtype=float).tolist()),
+                }
+            )
+
+            generated_rows.append(
+                {
+                    **base_meta,
+                    "spectrum_type": "generated",
+                    **{c: float(v) for c, v in zip(wl_cols, y_fake_np)},
+                }
+            )
+
+            real_rows.append(
+                {
+                    **base_meta,
+                    "spectrum_type": "real",
+                    **{c: float(v) for c, v in zip(wl_cols, y_real_np)},
+                }
+            )
+
             all_real.append(y_real_np)
             all_pred.append(y_fake_np)
 
     real_arr = np.stack(all_real, axis=0)
     pred_arr = np.stack(all_pred, axis=0)
 
-    return rows, real_arr, pred_arr
+    return rows, real_arr, pred_arr, generated_rows, real_rows
+
+
+# -------------------------------------------------------------------------
+# Tables
+# -------------------------------------------------------------------------
+
+
+def make_mean_std_tables(metrics_df: pd.DataFrame, output_dir: Path):
+    """
+    Create compact model-comparison tables using mean and std.
+
+    Main table requested by user:
+        RMSE, MAE, bias, MRE
+    """
+    primary_metrics = ["rmse", "mae", "bias", "mean_relative_error"]
+    optional_metrics = ["sam_deg", "r2", "relative_rmse", "mape_percent"]
+
+    group_cols = ["discriminator_mode", "stage_eval"]
+
+    rows = []
+    for (mode, stage), g in metrics_df.groupby(group_cols):
+        row = {
+            "discriminator_mode": mode,
+            "stage_eval": stage,
+            "n": int(len(g)),
+        }
+        for metric in primary_metrics + optional_metrics:
+            if metric not in g.columns:
+                continue
+            row[f"{metric}_mean"] = round(float(g[metric].mean()), 3)
+            row[f"{metric}_std"] = (
+                round(float(g[metric].std(ddof=1)), 3) if len(g) > 1 else 0.00
+            )
+        rows.append(row)
+
+    by_stage_mode = pd.DataFrame(rows)
+    by_stage_mode.to_csv(
+        output_dir / "model_comparison_mean_std_by_stage.csv", index=False
+    )
+
+    rows = []
+    for mode, g in metrics_df.groupby("discriminator_mode"):
+        row = {
+            "discriminator_mode": mode,
+            "n": int(len(g)),
+        }
+        for metric in primary_metrics + optional_metrics:
+            if metric not in g.columns:
+                continue
+            row[f"{metric}_mean"] = round(float(g[metric].mean()), 3)
+            row[f"{metric}_std"] = (
+                round(float(g[metric].std(ddof=1)), 3) if len(g) > 1 else 0.00
+            )
+        rows.append(row)
+
+    by_mode = pd.DataFrame(rows)
+    by_mode.to_csv(output_dir / "model_comparison_mean_std_by_mode.csv", index=False)
+
+    # Compact markdown table for reports.
+    md_cols = [
+        "discriminator_mode",
+        "stage_eval",
+        "n",
+        "rmse_mean_std",
+        "mae_mean_std",
+        "bias_mean_std",
+        "mean_relative_error_mean_std",
+    ]
+    md_cols = [c for c in md_cols if c in by_stage_mode.columns]
+    md = by_stage_mode[md_cols].to_markdown(index=False)
+    (output_dir / "model_comparison_mean_std_by_stage.md").write_text(md)
+
+    return by_stage_mode, by_mode
+
+
+# -------------------------------------------------------------------------
+# Plotting
+# -------------------------------------------------------------------------
 
 
 def plot_qualitative_by_stage(
-    stage_to_real: Dict[str, np.ndarray],
-    stage_to_pred: Dict[str, np.ndarray],
+    stage_to_real: Dict[Tuple[str, str], np.ndarray],
+    stage_to_pred: Dict[Tuple[str, str], np.ndarray],
     wavelengths: np.ndarray,
     stages: List[str],
+    mode_label: str,
     out_path: str,
     max_pred_lines: int = 80,
 ):
@@ -666,11 +892,12 @@ def plot_qualitative_by_stage(
     line_styles = [":", "-.", "--", (0, (1, 1)), (0, (3, 1, 1, 1))]
 
     for ax, stage in zip(axes, stages):
-        real = stage_to_real.get(stage)
-        pred = stage_to_pred.get(stage)
+        key = (mode_label, stage)
+        real = stage_to_real.get(key)
+        pred = stage_to_pred.get(key)
 
         if real is None or pred is None or real.size == 0:
-            ax.set_title(f"{stage}: no samples")
+            ax.set_title(f"{mode_label} | {stage}: no samples")
             ax.grid(alpha=0.25)
             continue
 
@@ -713,7 +940,7 @@ def plot_qualitative_by_stage(
                 linestyle=line_styles[i % len(line_styles)],
             )
 
-        ax.set_title(f"{stage} | n={real.shape[0]}")
+        ax.set_title(f"{mode_label} | {stage} | n={real.shape[0]}")
         ax.set_ylabel("Reflectance")
         ax.grid(alpha=0.25)
 
@@ -724,13 +951,129 @@ def plot_qualitative_by_stage(
         fig.legend(handles, labels, loc="upper center", ncol=2)
 
     fig.suptitle(
-        "Real spectral signatures and generated estimates by dehydration stage",
+        f"Real spectral signatures and generated estimates | {mode_label}",
         y=0.995,
         fontsize=14,
     )
     fig.tight_layout(rect=[0, 0, 1, 0.975])
-    fig.savefig(out_path, dpi=200)
+    fig.savefig(out_path, dpi=220)
     plt.close(fig)
+
+
+def plot_wavelength_error_curves(
+    wavelength_error_df: pd.DataFrame,
+    mode_labels: List[str],
+    stages: List[str],
+    output_dir: Path,
+):
+    """
+    Plot wavelength-wise error curves per stage, comparing modes.
+
+    The SAM-related plot is a contribution proxy, not true per-wavelength SAM.
+    """
+    plots_dir = ensure_dir(output_dir / "plots")
+
+    plot_specs = [
+        ("rmse", "Wavelength-wise RMSE", "RMSE"),
+        ("mae_mean", "Wavelength-wise MAE", "MAE"),
+        ("bias_mean", "Wavelength-wise bias", "Bias"),
+        ("mre_mean", "Wavelength-wise mean relative error", "MRE"),
+        (
+            "sam_contribution_proxy_mean",
+            "Wavelength-wise SAM contribution proxy",
+            "SAM contribution proxy",
+        ),
+    ]
+
+    for value_col, title_base, ylabel in plot_specs:
+        for stage in stages:
+            fig, ax = plt.subplots(figsize=(14, 5))
+
+            for mode in mode_labels:
+                sub = wavelength_error_df[
+                    (wavelength_error_df["stage_eval"] == stage)
+                    & (wavelength_error_df["discriminator_mode"] == mode)
+                ].sort_values("wavelength")
+
+                if sub.empty:
+                    continue
+
+                ax.plot(
+                    sub["wavelength"].to_numpy(),
+                    sub[value_col].to_numpy(),
+                    linewidth=1.4,
+                    label=mode,
+                )
+
+            ax.set_title(f"{title_base} | {stage}")
+            ax.set_xlabel("Wavelength (nm)")
+            ax.set_ylabel(ylabel)
+            ax.grid(alpha=0.25)
+            ax.legend(loc="best")
+            fig.tight_layout()
+            fig.savefig(
+                plots_dir
+                / f"wavelength_{safe_filename(value_col)}_{safe_filename(stage)}.svg",
+                dpi=220,
+            )
+            plt.close(fig)
+
+        # Aggregate over stages for each mode.
+        fig, ax = plt.subplots(figsize=(14, 5))
+        for mode in mode_labels:
+            sub = wavelength_error_df[wavelength_error_df["discriminator_mode"] == mode]
+            if sub.empty:
+                continue
+
+            agg = (
+                sub.groupby("wavelength", as_index=False)[value_col]
+                .mean(numeric_only=True)
+                .sort_values("wavelength")
+            )
+            ax.plot(
+                agg["wavelength"].to_numpy(),
+                agg[value_col].to_numpy(),
+                linewidth=1.6,
+                label=mode,
+            )
+
+        ax.set_title(f"{title_base} | average across stages")
+        ax.set_xlabel("Wavelength (nm)")
+        ax.set_ylabel(ylabel)
+        ax.grid(alpha=0.25)
+        ax.legend(loc="best")
+        fig.tight_layout()
+        fig.savefig(
+            plots_dir / f"wavelength_{safe_filename(value_col)}_all_stages_mean.svg",
+            dpi=220,
+        )
+        plt.close(fig)
+
+
+def make_all_plots(
+    stage_to_real: Dict[Tuple[str, str], np.ndarray],
+    stage_to_pred: Dict[Tuple[str, str], np.ndarray],
+    wavelengths: np.ndarray,
+    stages: List[str],
+    mode_labels: List[str],
+    output_dir: Path,
+    max_pred_lines: int,
+):
+    plots_dir = ensure_dir(output_dir / "plots")
+
+    for mode in mode_labels:
+        out_path = plots_dir / f"qualitative_spectra_{safe_filename(mode)}.svg"
+        plot_qualitative_by_stage(
+            stage_to_real=stage_to_real,
+            stage_to_pred=stage_to_pred,
+            wavelengths=wavelengths,
+            stages=stages,
+            mode_label=mode,
+            out_path=str(out_path),
+            max_pred_lines=max_pred_lines,
+        )
+
+    return plots_dir
 
 
 # -------------------------------------------------------------------------
@@ -740,7 +1083,10 @@ def plot_qualitative_by_stage(
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Evaluate trained pix2spectral generators on a testing set."
+        description=(
+            "Evaluate trained pix2spectral generators on a testing set, export "
+            "generated spectra, and compare discriminator modes."
+        )
     )
 
     parser.add_argument("--config-module", default="config")
@@ -761,40 +1107,43 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--results-root",
+        default="~/Results/pix2spectral",
+        help="Root folder containing avocado_global/, avocado_segmented/, etc.",
+    )
+    parser.add_argument(
+        "--experiment-dirs",
+        nargs="+",
+        default=DEFAULT_EXPERIMENT_DIRS,
+        help="Experiment folders inside --results-root.",
+    )
+    parser.add_argument(
+        "--mode-labels",
+        nargs="+",
+        default=DEFAULT_MODE_LABELS,
+        help="Labels corresponding to --experiment-dirs.",
+    )
+    parser.add_argument("--experiment-prefix", default="avocado")
+
+    parser.add_argument(
+        "--checkpoint-template",
+        default=None,
+        help=(
+            "Optional checkpoint template. Available fields: "
+            "{results_root}, {experiment_dir}, {experiment_path}, "
+            "{mode_label}, {experiment_prefix}, {stage}. "
+            "Default: {results_root}/{experiment_dir}/"
+            "{experiment_prefix}_{stage}_gen_best.pth.tar"
+        ),
+    )
+
+    parser.add_argument(
         "--stages",
         nargs="+",
         default=DEFAULT_STAGES,
         help="Stages to evaluate and plot.",
     )
 
-    parser.add_argument(
-        "--model-mode",
-        choices=["per-stage", "single"],
-        default="per-stage",
-        help="per-stage loads one checkpoint per stage; single loads one checkpoint for all stages.",
-    )
-
-    parser.add_argument(
-        "--checkpoint",
-        default=None,
-        help="Checkpoint for --model-mode single.",
-    )
-
-    parser.add_argument(
-        "--checkpoint-template",
-        default=None,
-        help=(
-            "Template for per-stage checkpoints. Available fields: "
-            "{results_dir}, {experiment_prefix}, {stage}. "
-            "Default: {results_dir}/{experiment_prefix}_{stage}_gen_best.pth.tar"
-        ),
-    )
-
-    parser.add_argument(
-        "--results-dir",
-        default="~/Results/pix2spectral_segmented/avocado_segmentedDiscriminator",
-    )
-    parser.add_argument("--experiment-prefix", default="avocado")
     parser.add_argument("--output-dir", default=None)
 
     parser.add_argument(
@@ -827,15 +1176,6 @@ def parse_args():
             "Use only for debugging, not final reporting."
         ),
     )
-    parser.add_argument(
-        "--allow-val-csv-as-test",
-        action="store_true",
-        help=(
-            "Allow falling back to VAL_CSV when TEST_CSV is absent. "
-            "Not recommended for final test reporting because validation was used "
-            "for model selection."
-        ),
-    )
 
     return parser.parse_args()
 
@@ -845,15 +1185,8 @@ def main():
 
     cfg = importlib.import_module(args.config_module)
 
-    # Resolve config/default paths.
-    # Important: for final reporting, do not silently use VAL_CSV as TEST_CSV.
-    # Validation was used for model selection, so evaluating on VAL_CSV is not
-    # an unbiased test-set estimate.
     if args.test_csv is None:
         args.test_csv = get_cfg_value(cfg, ["TEST_CSV"], None)
-        if args.test_csv is None and args.allow_val_csv_as_test:
-            args.test_csv = get_cfg_value(cfg, ["VAL_CSV"], None)
-
     if args.train_csv is None:
         args.train_csv = get_cfg_value(cfg, ["TRAIN_CSV"], None)
     if args.img_dir is None:
@@ -862,11 +1195,7 @@ def main():
         )
 
     if args.test_csv is None:
-        raise ValueError(
-            "No --test-csv provided and config has no TEST_CSV. "
-            "Do not use VAL_CSV for final test reporting. For debugging only, "
-            "you may pass --allow-val-csv-as-test."
-        )
+        raise ValueError("No --test-csv provided and config has no TEST_CSV.")
     if args.train_csv is None:
         raise ValueError("No --train-csv provided and config has no TRAIN_CSV.")
     if args.img_dir is None:
@@ -874,16 +1203,18 @@ def main():
             "No --img-dir provided and config has no TEST_IMG_DIR/VAL_IMG_DIR/TRAIN_IMG_DIR."
         )
 
-    results_dir = ensure_dir(args.results_dir)
+    stages = [canonical_stage_name(s) for s in args.stages]
+    mode_labels = [str(m).strip() for m in args.mode_labels]
+
+    results_root = ensure_dir(args.results_root)
 
     if args.output_dir is None:
-        args.output_dir = str(results_dir / "test_evaluation")
+        args.output_dir = str(results_root / "test_evaluation_discriminator_comparison")
     output_dir = ensure_dir(args.output_dir)
 
     if not args.allow_train_test_overlap:
         check_train_test_overlap(args.train_csv, args.test_csv)
 
-    # Force evaluation-related config overrides for deterministic test evaluation.
     maybe_set_config_value(cfg, "STAGE_FILTER", "all")
     if hasattr(cfg, "LOAD_MODEL"):
         setattr(cfg, "LOAD_MODEL", False)
@@ -900,104 +1231,164 @@ def main():
         requested = "cpu"
 
     device = torch.device(requested)
+    model_specs = build_model_specs(args)
 
     print("=" * 80)
-    print("pix2spectral test-set evaluation")
+    print("pix2spectral test-set evaluation and discriminator comparison")
     print("=" * 80)
     print(f"Device:            {device}")
     print(f"Train CSV:         {expand_path(args.train_csv)}")
     print(f"Test CSV:          {expand_path(args.test_csv)}")
     print(f"Image dir:         {expand_path(args.img_dir)}")
-    print(f"Model mode:        {args.model_mode}")
-    print(f"Stages:            {args.stages}")
+    print(f"Results root:      {results_root}")
     print(f"Output dir:        {output_dir}")
+    print(f"Stages:            {stages}")
+    print(f"Modes:             {mode_labels}")
     print(f"Dataset module:    {args.dataset_module}")
     print(f"Generator module:  {args.generator_module}")
     print("=" * 80)
 
     normalization_stats_cache = {}
-    all_rows = []
+
+    all_metric_rows = []
+    all_generated_rows = []
+    all_real_rows = []
+    all_wavelength_error_rows = []
+
     stage_to_real = {}
     stage_to_pred = {}
+    first_spectrum_len = None
+    wavelengths = None
 
-    for stage in args.stages:
-        stage = stage.strip().lower()
-        print("\n" + "-" * 80)
-        print(f"Evaluating stage: {stage}")
-        print("-" * 80)
+    for model_spec in model_specs:
+        mode = model_spec["mode_label"]
 
-        rows, real_arr, pred_arr = evaluate_one_stage(
-            args=args,
-            cfg=cfg,
-            stage=stage,
-            device=device,
-            normalization_stats_cache=normalization_stats_cache,
-        )
+        print("\n" + "#" * 80)
+        print(f"Evaluating discriminator mode: {mode}")
+        print(f"Experiment folder: {model_spec['experiment_path']}")
+        print("#" * 80)
 
-        if rows:
-            all_rows.extend(rows)
-            stage_to_real[stage] = real_arr
-            stage_to_pred[stage] = pred_arr
+        for stage in stages:
+            print("\n" + "-" * 80)
+            print(f"Evaluating mode='{mode}' on matching test stage='{stage}'")
+            print("-" * 80)
 
-            stage_df = pd.DataFrame(rows)
-            stage_csv = output_dir / f"test_metrics_{stage}.csv"
-            stage_df.to_csv(stage_csv, index=False)
-            print(f"Saved stage metrics: {stage_csv}")
+            rows, real_arr, pred_arr, gen_rows, real_rows = evaluate_model_on_stage(
+                args=args,
+                cfg=cfg,
+                model_spec=model_spec,
+                stage=stage,
+                device=device,
+                normalization_stats_cache=normalization_stats_cache,
+            )
 
-    if not all_rows:
+            if not rows:
+                continue
+
+            all_metric_rows.extend(rows)
+            all_generated_rows.extend(gen_rows)
+            all_real_rows.extend(real_rows)
+
+            stage_to_real[(mode, stage)] = real_arr
+            stage_to_pred[(mode, stage)] = pred_arr
+
+            if first_spectrum_len is None:
+                first_spectrum_len = pred_arr.shape[1]
+                wavelengths = make_wavelengths_from_config(
+                    cfg, fallback_count=first_spectrum_len
+                )
+
+            wl_summary = compute_wavelength_error_summary(
+                y_pred=pred_arr,
+                y_real=real_arr,
+                wavelengths=wavelengths,
+                relative_error_eps=args.relative_error_eps,
+            )
+            wl_summary.insert(0, "stage_eval", stage)
+            wl_summary.insert(0, "discriminator_mode", mode)
+            wl_summary.insert(0, "experiment_dir", model_spec["experiment_dir"])
+            all_wavelength_error_rows.extend(wl_summary.to_dict("records"))
+
+            mode_stage = f"{safe_filename(mode)}_{safe_filename(stage)}"
+            pd.DataFrame(rows).to_csv(
+                output_dir / f"test_metrics_{mode_stage}.csv",
+                index=False,
+            )
+            pd.DataFrame(gen_rows).to_csv(
+                output_dir / f"generated_spectra_{mode_stage}.csv",
+                index=False,
+            )
+            pd.DataFrame(real_rows).to_csv(
+                output_dir / f"real_spectra_{mode_stage}.csv",
+                index=False,
+            )
+            wl_summary.to_csv(
+                output_dir / f"wavelength_error_summary_{mode_stage}.csv",
+                index=False,
+            )
+
+    if not all_metric_rows:
         raise RuntimeError(
-            "No evaluation rows were produced. Check test CSV/stage filters."
+            "No evaluation rows were produced. Check test CSV/stage filters and checkpoint paths."
         )
 
-    metrics_df = pd.DataFrame(all_rows)
-    metrics_csv = output_dir / "test_metrics_all_stages.csv"
+    metrics_df = pd.DataFrame(all_metric_rows)
+    generated_df = pd.DataFrame(all_generated_rows)
+    real_df = pd.DataFrame(all_real_rows)
+    wavelength_error_df = pd.DataFrame(all_wavelength_error_rows)
+
+    metrics_csv = output_dir / "test_metrics_all_modes_all_stages.csv"
+    generated_csv = output_dir / "generated_spectra_all_modes_all_stages.csv"
+    real_csv = output_dir / "real_spectra_all_modes_all_stages.csv"
+    wl_error_csv = output_dir / "wavelength_error_summary_all_modes_all_stages.csv"
+
     metrics_df.to_csv(metrics_csv, index=False)
+    generated_df.to_csv(generated_csv, index=False)
+    real_df.to_csv(real_csv, index=False)
+    wavelength_error_df.to_csv(wl_error_csv, index=False)
 
-    # Summary by stage.
-    metric_cols = [
-        "rmse",
-        "mae",
-        "bias",
-        "relative_rmse",
-        "nrmse_mean",
-        "nrmse_range",
-        "mean_relative_error",
-        "median_relative_error",
-        "mape_percent",
-        "r2",
-        "sam_rad",
-        "sam_deg",
-    ]
+    by_stage_mode, by_mode = make_mean_std_tables(metrics_df, output_dir)
 
-    summary_df = (
-        metrics_df.groupby("stage_eval")[metric_cols]
-        .agg(["mean", "std", "median", "min", "max"])
-        .reset_index()
-    )
-    summary_csv = output_dir / "test_metrics_summary_by_stage.csv"
-    summary_df.to_csv(summary_csv, index=False)
-
-    # Determine wavelengths from first real array length.
-    first_stage = next(iter(stage_to_real))
-    spectrum_len = stage_to_real[first_stage].shape[1]
-    wavelengths = make_wavelengths_from_config(cfg, fallback_count=spectrum_len)
-
-    fig_path = output_dir / "qualitative_spectra_by_stage.png"
-    plot_qualitative_by_stage(
+    plots_dir = make_all_plots(
         stage_to_real=stage_to_real,
         stage_to_pred=stage_to_pred,
         wavelengths=wavelengths,
-        stages=[s.strip().lower() for s in args.stages],
-        out_path=str(fig_path),
+        stages=stages,
+        mode_labels=mode_labels,
+        output_dir=output_dir,
         max_pred_lines=args.max_pred_lines,
     )
+
+    plot_wavelength_error_curves(
+        wavelength_error_df=wavelength_error_df,
+        mode_labels=mode_labels,
+        stages=stages,
+        output_dir=output_dir,
+    )
+
+    # Add a small text note explaining the SAM proxy.
+    note = (
+        "True SAM is a vector-angle metric and is not mathematically defined per wavelength.\\n"
+        "The plotted sam_contribution_proxy is abs(y_pred/||y_pred|| - y_real/||y_real||) per wavelength,\\n"
+        "averaged over test samples. It should be interpreted as a wavelength-wise angular-mismatch diagnostic,\\n"
+        "not as a true SAM angle in degrees.\\n"
+    )
+    (output_dir / "sam_contribution_proxy_note.txt").write_text(note)
 
     print("\n" + "=" * 80)
     print("Evaluation finished")
     print("=" * 80)
-    print(f"Per-sample metrics: {metrics_csv}")
-    print(f"Summary metrics:    {summary_csv}")
-    print(f"Qualitative plot:   {fig_path}")
+    print(f"Per-sample metrics:          {metrics_csv}")
+    print(f"Generated spectra:           {generated_csv}")
+    print(f"Real spectra:                {real_csv}")
+    print(f"Wavelength error summary:    {wl_error_csv}")
+    print(
+        f"Mean/std by stage:           {output_dir / 'model_comparison_mean_std_by_stage.csv'}"
+    )
+    print(
+        f"Mean/std by mode:            {output_dir / 'model_comparison_mean_std_by_mode.csv'}"
+    )
+    print(f"Plots directory:             {plots_dir}")
     print("=" * 80)
 
 
