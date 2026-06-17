@@ -47,6 +47,16 @@ python train_lwc_regressors_from_generated_spectra.py \
     --target-column LWC_d \
     --species Avocado \
     --output-dir ~/Results/lwc_regression/avocado_LWC_d
+
+Plot update
+-----------
+The script saves one SVG subplot figure:
+
+    cv_test_scatter_subplots_all_models.svg
+
+The figure has five rows, one row per machine-learning model, and two columns:
+5-fold cross-validation and independent test. All subplots share the same x/y
+limits and the same tick positions.
 """
 
 from __future__ import annotations
@@ -677,12 +687,12 @@ def plot_scatter(
     if min_v < 0.0:
         min_v = 0
     max_v = float(np.nanmax([np.max(y_true), np.max(y_pred)]))
-    pad = 0.05 * (max_v - min_v) if max_v > min_v else 1.0
-    lo, hi = min_v - pad, max_v + pad
+    # pad = 0.05 * (max_v - min_v) if max_v > min_v else 1.0
+    # lo, hi = min_v - pad, max_v + pad
 
     fig, ax = plt.subplots(figsize=(5.0, 4.5))
     ax.scatter(y_true, y_pred, s=18, alpha=0.70, edgecolors="none")
-    ax.plot([lo, hi], [lo, hi], linestyle="--", linewidth=1.5)
+    ax.plot([min_v, max_v], [min_v, max_v], linestyle="--", linewidth=1.5)
 
     ax.set_xlim(min_v, max_v)
     ax.set_ylim(min_v, max_v)
@@ -743,11 +753,11 @@ def plot_combined_scatter_grid(
             min_v = 0
 
         max_v = float(np.nanmax([np.max(y_true), np.max(y_pred)]))
-        pad = 0.05 * (max_v - min_v) if max_v > min_v else 1.0
-        lo, hi = min_v - pad, max_v + pad
+        # pad = 0.05 * (max_v - min_v) if max_v > min_v else 1.0
+        # lo, hi = min_v - pad, max_v + pad
 
         ax.scatter(y_true, y_pred, s=14, alpha=0.70, edgecolors="none")
-        ax.plot([lo, hi], [lo, hi], linestyle="--", linewidth=1.2)
+        ax.plot([min_v, max_v], [min_v, max_v], linestyle="--", linewidth=1.2)
         ax.set_xlim(min_v, max_v)
         ax.set_ylim(min_v, max_v)
         ax.set_title(
@@ -764,6 +774,121 @@ def plot_combined_scatter_grid(
 
     fig.suptitle(f"{eval_name}: real vs estimated {target_name}", y=1.01)
     fig.tight_layout()
+    fig.savefig(out_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_cv_test_scatter_subplots(
+    cv_predictions_df: pd.DataFrame,
+    test_predictions_df: pd.DataFrame,
+    model_names: Sequence[str],
+    target_name: str,
+    out_path: Path,
+) -> None:
+    """
+    Save one SVG figure with five rows and two columns.
+
+    Rows:
+        one row per machine-learning model.
+
+    Columns:
+        column 1 = 5-fold cross-validation predictions
+        column 2 = independent test-set predictions
+
+    All subplots use the same x/y limits and the same tick positions.
+    """
+    all_values = np.concatenate(
+        [
+            cv_predictions_df["y_true"].to_numpy(dtype=float),
+            cv_predictions_df["y_pred"].to_numpy(dtype=float),
+            test_predictions_df["y_true"].to_numpy(dtype=float),
+            test_predictions_df["y_pred"].to_numpy(dtype=float),
+        ]
+    )
+    all_values = all_values[np.isfinite(all_values)]
+
+    if all_values.size == 0:
+        raise ValueError("No finite values available for shared subplot axis scaling.")
+
+    min_v = float(np.min(all_values))
+    max_v = float(np.max(all_values))
+
+    # Keep the lower bound at zero when the target is non-negative, but do not
+    # force zero if all values are above zero and the data are not intended to be clipped.
+    # if min_v >= 0.0:
+    #    lo_base = 0.0
+    # else:
+    #    lo_base = min_v
+
+    if min_v < 0.0:
+        min_v = 0
+
+    # pad = 0.05 * (max_v - lo_base) if max_v > lo_base else 1.0
+    # lo = max(0.0, lo_base - pad) if lo_base >= 0.0 else lo_base - pad
+    # hi = max_v + pad
+
+    # Same ticks for x and y in every subplot.
+    shared_ticks = np.round(np.linspace(min_v, max_v, 6), 0)
+
+    nrows = len(model_names)
+    fig, axes = plt.subplots(
+        nrows=nrows,
+        ncols=2,
+        figsize=(10.0, 3.0 * nrows),
+        sharex=True,
+        sharey=True,
+        squeeze=False,
+    )
+
+    columns = [
+        ("5-fold CV", cv_predictions_df),
+        ("Independent test", test_predictions_df),
+    ]
+
+    for row_idx, model_name in enumerate(model_names):
+        for col_idx, (eval_name, pred_df) in enumerate(columns):
+            ax = axes[row_idx, col_idx]
+            sub = pred_df[pred_df["Model"] == model_name]
+
+            y_true = sub["y_true"].to_numpy(dtype=float)
+            y_pred = sub["y_pred"].to_numpy(dtype=float)
+            metrics = regression_metrics(y_true, y_pred)
+
+            ax.scatter(y_true, y_pred, s=16, alpha=0.70, edgecolors="none")
+            ax.plot([min_v, max_v], [min_v, max_v], linestyle="--", linewidth=1.2)
+
+            ax.set_xlim(min_v, max_v)
+            ax.set_ylim(min_v, max_v)
+            ax.set_xticks(shared_ticks)
+            ax.set_yticks(shared_ticks)
+            ax.set_aspect("equal", adjustable="box")
+            ax.grid(alpha=0.25)
+
+            if row_idx == 0:
+                ax.set_title(eval_name)
+
+            if col_idx == 0:
+                ax.set_ylabel(f"{model_name}\nEstimated {target_name}")
+
+            if row_idx == nrows - 1:
+                ax.set_xlabel(f"Real {target_name}")
+
+            ax.text(
+                0.05,
+                0.95,
+                f"RMSE={metrics['RMSE']:.3f}\nMAE={metrics['MAE']:.3f}\nR²={metrics['R2']:.3f}",
+                transform=ax.transAxes,
+                va="top",
+                ha="left",
+                fontsize=9,
+                bbox=dict(boxstyle="round", alpha=0.12),
+            )
+
+    fig.suptitle(
+        f"Real vs estimated {target_name}: cross-validation and test set",
+        y=0.995,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.985])
     fig.savefig(out_path, format="svg", bbox_inches="tight")
     plt.close(fig)
 
@@ -926,6 +1051,14 @@ def run_model_evaluation(
         eval_name="Test set",
         target_name=target_column,
         out_path=output_dir / "test_scatter_all_models.svg",
+    )
+
+    plot_cv_test_scatter_subplots(
+        cv_predictions_df=cv_predictions_df,
+        test_predictions_df=test_predictions_df,
+        model_names=MODEL_ORDER,
+        target_name=target_column,
+        out_path=output_dir / "cv_test_scatter_subplots_all_models.svg",
     )
 
     if save_models:
@@ -1139,6 +1272,9 @@ def main() -> int:
             "test_predictions": str(test_pred_path),
             "cv_scatter_all_models": str(output_dir / "cv_scatter_all_models.svg"),
             "test_scatter_all_models": str(output_dir / "test_scatter_all_models.svg"),
+            "cv_test_scatter_subplots_all_models": str(
+                output_dir / "cv_test_scatter_subplots_all_models.svg"
+            ),
             "scatter_cv_dir": str(output_dir / "scatter_cv_svg"),
             "scatter_test_dir": str(output_dir / "scatter_test_svg"),
         },
@@ -1156,6 +1292,7 @@ def main() -> int:
     print("")
     print(f"CV predictions:   {cv_pred_path}")
     print(f"Test predictions: {test_pred_path}")
+    print(f"5x2 subplot SVG:  {output_dir / 'cv_test_scatter_subplots_all_models.svg'}")
     print(f"Scatter SVGs:     {output_dir}")
     print("=" * 80)
 
