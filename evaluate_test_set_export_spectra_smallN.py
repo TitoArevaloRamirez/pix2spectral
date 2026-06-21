@@ -1089,9 +1089,9 @@ def parse_args():
         )
     )
 
-    parser.add_argument("--config-module", default="config")
+    parser.add_argument("--config-module", default="config_cgan")
     parser.add_argument("--dataset-module", default="dataset")
-    parser.add_argument("--generator-module", default="generator_model")
+    parser.add_argument("--generator-module", default="generator_model_cgan")
 
     parser.add_argument(
         "--test-csv",
@@ -1209,7 +1209,7 @@ def main():
     results_root = ensure_dir(args.results_root)
 
     if args.output_dir is None:
-        args.output_dir = str(results_root / "test_evaluation_discriminator_comparison")
+        args.output_dir = str(results_root / "test_evaluation")
     output_dir = ensure_dir(args.output_dir)
 
     if not args.allow_train_test_overlap:

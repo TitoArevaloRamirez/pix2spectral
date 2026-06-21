@@ -1,0 +1,25 @@
+{
+  "input_csv": "/home/usr3/Code/pix2spectral/Data/dataset_splits_70_20_10/avocado_train_val.csv",
+  "output_dir": "/home/usr3/Code/pix2spectral/pix2spectral_stage_change_points/avocado",
+  "stage_column": "Stages",
+  "species_column": "Species",
+  "spectral_column": "spectral",
+  "n_rows_used": 470,
+  "spectral_drop_first_n": 50,
+  "retained_spectral_length": 2101,
+  "wavelength_min": 400.0,
+  "wavelength_max": 2500.0,
+  "smoothing_window": 31,
+  "smoothing_polyorder": 3,
+  "min_distance": 20,
+  "prominence_frac": 0.03,
+  "curvature_prominence_frac": 0.15,
+  "scipy_available": true,
+  "outputs": {
+    "stage_mean_spectra_csv": "/home/usr3/Code/pix2spectral/pix2spectral_stage_change_points/avocado/stage_mean_spectra.csv",
+    "change_points_csv": "/home/usr3/Code/pix2spectral/pix2spectral_stage_change_points/avocado/stage_reflectance_change_points.csv",
+    "change_points_json": "/home/usr3/Code/pix2spectral/pix2spectral_stage_change_points/avocado/stage_reflectance_change_points.json",
+    "change_points_plot": "/home/usr3/Code/pix2spectral/pix2spectral_stage_change_points/avocado/stage_reflectance_change_points.svg",
+    "mean_spectra_plot": "/home/usr3/Code/pix2spectral/pix2spectral_stage_change_points/avocado/stage_mean_spectra_only.svg"
+  }
+}

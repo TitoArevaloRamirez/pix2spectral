@@ -1,0 +1,892 @@
+{
+  "Fresh": [
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 133,
+      "wavelength_nm": 533.0,
+      "mean_reflectance": 0.1047000139951706,
+      "smoothed_reflectance": 0.1041440694615553,
+      "first_derivative": 0.0013660279087837138,
+      "second_derivative": -0.00013180378048825714,
+      "score": 0.00013108786418906428
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 148,
+      "wavelength_nm": 548.0,
+      "mean_reflectance": 0.11308997869491577,
+      "smoothed_reflectance": 0.1133440874825073,
+      "first_derivative": 2.1630442863365684e-05,
+      "second_derivative": -8.115969430281048e-05,
+      "score": 0.05618382901720076
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 258,
+      "wavelength_nm": 658.0,
+      "mean_reflectance": 0.054139990359544754,
+      "smoothed_reflectance": 0.05399747968920793,
+      "first_derivative": 6.759817635631354e-06,
+      "second_derivative": 1.684606777098245e-05,
+      "score": 0.059346607793299366
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 299,
+      "wavelength_nm": 699.0,
+      "mean_reflectance": 0.10609002411365509,
+      "smoothed_reflectance": 0.10857710475078133,
+      "first_derivative": 0.007861430188385449,
+      "second_derivative": 0.0007733911961853301,
+      "score": 0.0007732923256849253
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 519,
+      "wavelength_nm": 919.0,
+      "mean_reflectance": 0.8914401531219482,
+      "smoothed_reflectance": 0.8913718143805267,
+      "first_derivative": 4.0143327437180965e-06,
+      "second_derivative": -1.6563349636067315e-05,
+      "score": 0.029278432139130284
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 572,
+      "wavelength_nm": 972.0,
+      "mean_reflectance": 0.8622100353240967,
+      "smoothed_reflectance": 0.8620933822413964,
+      "first_derivative": -3.4077444288072023e-06,
+      "second_derivative": 4.537940169990762e-05,
+      "score": 0.029278432139130284
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 679,
+      "wavelength_nm": 1079.0,
+      "mean_reflectance": 0.9077003598213196,
+      "smoothed_reflectance": 0.9077391203920876,
+      "first_derivative": -2.6913525325023002e-06,
+      "second_derivative": -7.199733584428714e-06,
+      "score": 0.8537416407028797
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 732,
+      "wavelength_nm": 1132.0,
+      "mean_reflectance": 0.8838599920272827,
+      "smoothed_reflectance": 0.8832340122221235,
+      "first_derivative": -0.002296074813508464,
+      "second_derivative": -0.00019581258953946246,
+      "score": 0.00019512725365825045
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 796,
+      "wavelength_nm": 1196.0,
+      "mean_reflectance": 0.7853000164031982,
+      "smoothed_reflectance": 0.7853609165222617,
+      "first_derivative": 1.750599688238319e-05,
+      "second_derivative": 5.576266613419034e-05,
+      "score": 0.04300612658457992
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 870,
+      "wavelength_nm": 1270.0,
+      "mean_reflectance": 0.8283500075340271,
+      "smoothed_reflectance": 0.8283670431068416,
+      "first_derivative": -1.4634712338701394e-05,
+      "second_derivative": -3.51089680926675e-05,
+      "score": 0.04300612658457992
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 977,
+      "wavelength_nm": 1377.0,
+      "mean_reflectance": 0.5615798830986023,
+      "smoothed_reflectance": 0.5602850384225732,
+      "first_derivative": -0.007836453997096426,
+      "second_derivative": -0.00047437186588447644,
+      "score": 0.0004743410163069173
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1045,
+      "wavelength_nm": 1445.0,
+      "mean_reflectance": 0.18630000948905945,
+      "smoothed_reflectance": 0.1862863740736878,
+      "first_derivative": -8.60960282959844e-06,
+      "second_derivative": 3.369391870122057e-05,
+      "score": 0.3123817623719283
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1257,
+      "wavelength_nm": 1657.0,
+      "mean_reflectance": 0.498820036649704,
+      "smoothed_reflectance": 0.4986681364456161,
+      "first_derivative": 2.190569544341381e-05,
+      "second_derivative": -4.7928601012145466e-05,
+      "score": 0.3123817623719283
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1493,
+      "wavelength_nm": 1893.0,
+      "mean_reflectance": 0.08886997401714325,
+      "smoothed_reflectance": 0.08985109501801933,
+      "first_derivative": -0.004832877179206177,
+      "second_derivative": 0.0003749341648857374,
+      "score": 0.0003747698693747359
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1528,
+      "wavelength_nm": 1928.0,
+      "mean_reflectance": 0.04684000462293625,
+      "smoothed_reflectance": 0.04680186997473959,
+      "first_derivative": -6.831674601599086e-06,
+      "second_derivative": 1.8587081664578342e-05,
+      "score": 0.165406410451545
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1815,
+      "wavelength_nm": 2215.0,
+      "mean_reflectance": 0.21222999691963196,
+      "smoothed_reflectance": 0.2122082804262846,
+      "first_derivative": -6.177158161146945e-06,
+      "second_derivative": -2.4274578876472275e-05,
+      "score": 0.1626674759981675
+    }
+  ],
+  "Stage1": [
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 156,
+      "wavelength_nm": 556.0,
+      "mean_reflectance": 0.08934000134468079,
+      "smoothed_reflectance": 0.08934981861964283,
+      "first_derivative": -1.8050517619078166e-06,
+      "second_derivative": -3.974221342403772e-05,
+      "score": 0.026750111959768952
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 268,
+      "wavelength_nm": 668.0,
+      "mean_reflectance": 0.060050010681152344,
+      "smoothed_reflectance": 0.060070728531862544,
+      "first_derivative": -2.011828503493962e-05,
+      "second_derivative": 3.7057817792948006e-05,
+      "score": 0.02927909008778029
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 295,
+      "wavelength_nm": 695.0,
+      "mean_reflectance": 0.09771998226642609,
+      "smoothed_reflectance": 0.09969997340307189,
+      "first_derivative": 0.005673612958515685,
+      "second_derivative": 0.0005243109016088501,
+      "score": 0.0005243007680959602
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 694,
+      "wavelength_nm": 1094.0,
+      "mean_reflectance": 0.9059800505638123,
+      "smoothed_reflectance": 0.9059768793302684,
+      "first_derivative": 8.278951954543423e-07,
+      "second_derivative": -7.548501221837922e-06,
+      "score": 0.8320974312185199
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 732,
+      "wavelength_nm": 1132.0,
+      "mean_reflectance": 0.8935001492500305,
+      "smoothed_reflectance": 0.8931501396312738,
+      "first_derivative": -0.001568436417689112,
+      "second_derivative": -0.00014378481831511802,
+      "score": 0.0001435954414178986
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 796,
+      "wavelength_nm": 1196.0,
+      "mean_reflectance": 0.8183799982070923,
+      "smoothed_reflectance": 0.8183736489110314,
+      "first_derivative": 2.1061182793602473e-05,
+      "second_derivative": 4.997905518949741e-05,
+      "score": 0.04139374120735084
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 871,
+      "wavelength_nm": 1271.0,
+      "mean_reflectance": 0.8597703576087952,
+      "smoothed_reflectance": 0.8597673901183822,
+      "first_derivative": 7.795867429105652e-06,
+      "second_derivative": -2.6483243559749514e-05,
+      "score": 0.04139374120735084
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 979,
+      "wavelength_nm": 1379.0,
+      "mean_reflectance": 0.6318899393081665,
+      "smoothed_reflectance": 0.6305759948785359,
+      "first_derivative": -0.007524423071426256,
+      "second_derivative": -0.000441967108961161,
+      "score": 0.00044183152481888643
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1044,
+      "wavelength_nm": 1444.0,
+      "mean_reflectance": 0.27066004276275635,
+      "smoothed_reflectance": 0.27060307511268317,
+      "first_derivative": 1.730118238812972e-05,
+      "second_derivative": 4.1725485989560496e-05,
+      "score": 0.302686948746218
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1254,
+      "wavelength_nm": 1654.0,
+      "mean_reflectance": 0.5733500123023987,
+      "smoothed_reflectance": 0.5732900238589012,
+      "first_derivative": -1.1924069213964383e-05,
+      "second_derivative": -4.833677213078591e-05,
+      "score": 0.302686948746218
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1496,
+      "wavelength_nm": 1896.0,
+      "mean_reflectance": 0.12681999802589417,
+      "smoothed_reflectance": 0.1277891161467012,
+      "first_derivative": -0.005738015146958798,
+      "second_derivative": 0.0004252570366061366,
+      "score": 0.00042498170416354134
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1528,
+      "wavelength_nm": 1928.0,
+      "mean_reflectance": 0.07392001897096634,
+      "smoothed_reflectance": 0.07387944811174853,
+      "first_derivative": 8.069032279359178e-06,
+      "second_derivative": 3.977268045212562e-05,
+      "score": 0.20060254482063666
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1815,
+      "wavelength_nm": 2215.0,
+      "mean_reflectance": 0.27448004484176636,
+      "smoothed_reflectance": 0.2744819929323852,
+      "first_derivative": 5.01961941448692e-06,
+      "second_derivative": -3.4725423293871516e-05,
+      "score": 0.1956044005941544
+    }
+  ],
+  "Stage2": [
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 160,
+      "wavelength_nm": 560.0,
+      "mean_reflectance": 0.10020001232624054,
+      "smoothed_reflectance": 0.1000702665166193,
+      "first_derivative": -6.904552264708208e-06,
+      "second_derivative": -4.6164719000822e-05,
+      "score": 0.031725883249571665
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 270,
+      "wavelength_nm": 670.0,
+      "mean_reflectance": 0.06737001240253448,
+      "smoothed_reflectance": 0.06728853800275689,
+      "first_derivative": -3.8095272904964395e-06,
+      "second_derivative": 5.8892924842991745e-05,
+      "score": 0.03278172851386241
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 293,
+      "wavelength_nm": 693.0,
+      "mean_reflectance": 0.10186998546123505,
+      "smoothed_reflectance": 0.10312639452898648,
+      "first_derivative": 0.00478779069347738,
+      "second_derivative": 0.0004135808926378874,
+      "score": 0.00041344792399672023
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 711,
+      "wavelength_nm": 1111.0,
+      "mean_reflectance": 0.8948900699615479,
+      "smoothed_reflectance": 0.8949475985154566,
+      "first_derivative": 2.6282791373843928e-06,
+      "second_derivative": -1.0355011145518622e-05,
+      "score": 0.783070124948776
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 732,
+      "wavelength_nm": 1132.0,
+      "mean_reflectance": 0.888029932975769,
+      "smoothed_reflectance": 0.8877817651405214,
+      "first_derivative": -0.0010374232332533984,
+      "second_derivative": -9.65994799602965e-05,
+      "score": 9.646335335486422e-05
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 796,
+      "wavelength_nm": 1196.0,
+      "mean_reflectance": 0.829740047454834,
+      "smoothed_reflectance": 0.829719462527528,
+      "first_derivative": 5.546727837701937e-06,
+      "second_derivative": 4.5537412172613756e-05,
+      "score": 0.03957571523690162
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 876,
+      "wavelength_nm": 1276.0,
+      "mean_reflectance": 0.8692499399185181,
+      "smoothed_reflectance": 0.8692951777644297,
+      "first_derivative": 1.5725494214025026e-06,
+      "second_derivative": -1.5237822862057548e-05,
+      "score": 0.03957571523690162
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 980,
+      "wavelength_nm": 1380.0,
+      "mean_reflectance": 0.6929300427436829,
+      "smoothed_reflectance": 0.6917903281244011,
+      "first_derivative": -0.006189932830654832,
+      "second_derivative": -0.00037857289049794685,
+      "score": 0.0003780144510610456
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1044,
+      "wavelength_nm": 1444.0,
+      "mean_reflectance": 0.35927000641822815,
+      "smoothed_reflectance": 0.3591880997604511,
+      "first_derivative": -3.001017618242674e-06,
+      "second_derivative": 4.8858831879661224e-05,
+      "score": 0.26513735511350467
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1251,
+      "wavelength_nm": 1651.0,
+      "mean_reflectance": 0.6243399977684021,
+      "smoothed_reflectance": 0.6243254548739557,
+      "first_derivative": -2.341432161068191e-05,
+      "second_derivative": -5.0665943117977896e-05,
+      "score": 0.26513735511350467
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1324,
+      "wavelength_nm": 1724.0,
+      "mean_reflectance": 0.5459499359130859,
+      "smoothed_reflectance": 0.5464100024313977,
+      "first_derivative": -0.0005354724002445965,
+      "second_derivative": 9.249806380007275e-05,
+      "score": 9.168209978005493e-05
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1498,
+      "wavelength_nm": 1898.0,
+      "mean_reflectance": 0.18436996638774872,
+      "smoothed_reflectance": 0.18522337428333485,
+      "first_derivative": -0.006796624905142587,
+      "second_derivative": 0.0004437651422294006,
+      "score": 0.00044365540607922
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1528,
+      "wavelength_nm": 1928.0,
+      "mean_reflectance": 0.11699002236127853,
+      "smoothed_reflectance": 0.11696559875006687,
+      "first_derivative": -4.310903371745889e-06,
+      "second_derivative": 6.991225669690515e-05,
+      "score": 0.21246479297957696
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1816,
+      "wavelength_nm": 2216.0,
+      "mean_reflectance": 0.32943999767303467,
+      "smoothed_reflectance": 0.32943039172964383,
+      "first_derivative": 2.5877511131144892e-06,
+      "second_derivative": -4.266440982896025e-05,
+      "score": 0.21246479297957696
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1829,
+      "wavelength_nm": 2229.0,
+      "mean_reflectance": 0.3247399628162384,
+      "smoothed_reflectance": 0.32461275601966905,
+      "first_derivative": -0.0008441684177110109,
+      "second_derivative": -9.265254072814144e-05,
+      "score": 9.252503401274703e-05
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1904,
+      "wavelength_nm": 2304.0,
+      "mean_reflectance": 0.23035003244876862,
+      "smoothed_reflectance": 0.23075237729024445,
+      "first_derivative": -0.0006039627020695548,
+      "second_derivative": 9.154746570171762e-05,
+      "score": 9.090278743311558e-05
+    }
+  ],
+  "Stage3": [
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 162,
+      "wavelength_nm": 562.0,
+      "mean_reflectance": 0.10738001763820648,
+      "smoothed_reflectance": 0.10724448334451299,
+      "first_derivative": -2.24738796278795e-05,
+      "second_derivative": -4.26275790301224e-05,
+      "score": 0.035051762372094356
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 271,
+      "wavelength_nm": 671.0,
+      "mean_reflectance": 0.07232002168893814,
+      "smoothed_reflectance": 0.07219272097241863,
+      "first_derivative": 3.342928220027852e-05,
+      "second_derivative": 7.274152841187098e-05,
+      "score": 0.035051762372094356
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 292,
+      "wavelength_nm": 692.0,
+      "mean_reflectance": 0.10586001724004745,
+      "smoothed_reflectance": 0.10702115941793475,
+      "first_derivative": 0.004790104079163776,
+      "second_derivative": 0.0004321462283111803,
+      "score": 0.00043184146422931696
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 717,
+      "wavelength_nm": 1117.0,
+      "mean_reflectance": 0.9045300483703613,
+      "smoothed_reflectance": 0.9045954182109324,
+      "first_derivative": -5.875990911285989e-06,
+      "second_derivative": -1.7956755124920454e-05,
+      "score": 0.7336587445157419
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 797,
+      "wavelength_nm": 1197.0,
+      "mean_reflectance": 0.8560001254081726,
+      "smoothed_reflectance": 0.8559382794683952,
+      "first_derivative": 7.774223149570325e-06,
+      "second_derivative": 4.17838068048626e-05,
+      "score": 0.0386343537368804
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 883,
+      "wavelength_nm": 1283.0,
+      "mean_reflectance": 0.8945198059082031,
+      "smoothed_reflectance": 0.8945726332052756,
+      "first_derivative": 1.4682759504891507e-06,
+      "second_derivative": -9.121850776422358e-06,
+      "score": 0.0386343537368804
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 984,
+      "wavelength_nm": 1384.0,
+      "mean_reflectance": 0.756320059299469,
+      "smoothed_reflectance": 0.7556554137882632,
+      "first_derivative": -0.005160653831647877,
+      "second_derivative": -0.0002716961373742388,
+      "score": 0.0002716122092848161
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1046,
+      "wavelength_nm": 1446.0,
+      "mean_reflectance": 0.4834900200366974,
+      "smoothed_reflectance": 0.4833532038882665,
+      "first_derivative": -1.35143240295732e-06,
+      "second_derivative": 4.641138207793494e-05,
+      "score": 0.20448922650771617
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1247,
+      "wavelength_nm": 1647.0,
+      "mean_reflectance": 0.6878501176834106,
+      "smoothed_reflectance": 0.6878424303959827,
+      "first_derivative": 7.258904258677923e-06,
+      "second_derivative": -5.20572360140914e-05,
+      "score": 0.20448922650771617
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1323,
+      "wavelength_nm": 1723.0,
+      "mean_reflectance": 0.5964300632476807,
+      "smoothed_reflectance": 0.5967539062344522,
+      "first_derivative": -0.0004575715193747554,
+      "second_derivative": 0.00011924416088993084,
+      "score": 0.00011805436592854379
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1359,
+      "wavelength_nm": 1759.0,
+      "mean_reflectance": 0.5936199426651001,
+      "smoothed_reflectance": 0.5937831979367166,
+      "first_derivative": -1.9551131153705548e-05,
+      "second_derivative": 5.51867089048641e-05,
+      "score": 0.026107264211196468
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1440,
+      "wavelength_nm": 1840.0,
+      "mean_reflectance": 0.6199200749397278,
+      "smoothed_reflectance": 0.6198904621479131,
+      "first_derivative": -1.5008541773220418e-05,
+      "second_derivative": -5.884747773288179e-05,
+      "score": 0.026107264211196468
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1503,
+      "wavelength_nm": 1903.0,
+      "mean_reflectance": 0.27163001894950867,
+      "smoothed_reflectance": 0.27242653108947684,
+      "first_derivative": -0.006626723744995816,
+      "second_derivative": 0.0004502414526158238,
+      "score": 0.00045019579680806443
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1528,
+      "wavelength_nm": 1928.0,
+      "mean_reflectance": 0.20890003442764282,
+      "smoothed_reflectance": 0.20888920553575577,
+      "first_derivative": -4.402658300220463e-05,
+      "second_derivative": 0.00011445366811288493,
+      "score": 0.1865917495416484
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1816,
+      "wavelength_nm": 2216.0,
+      "mean_reflectance": 0.39553987979888916,
+      "smoothed_reflectance": 0.39548095507740416,
+      "first_derivative": 1.2393956816542095e-05,
+      "second_derivative": -5.329033535618477e-05,
+      "score": 0.1865917495416484
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1832,
+      "wavelength_nm": 2232.0,
+      "mean_reflectance": 0.38609009981155396,
+      "smoothed_reflectance": 0.38575850600888234,
+      "first_derivative": -0.0014293489278730531,
+      "second_derivative": -0.00011882331346228792,
+      "score": 0.00011814707966054105
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1903,
+      "wavelength_nm": 2303.0,
+      "mean_reflectance": 0.2763800024986267,
+      "smoothed_reflectance": 0.27687570768221864,
+      "first_derivative": -0.0005915565586678273,
+      "second_derivative": 0.00012139747286002422,
+      "score": 0.0001211446782541925
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 2081,
+      "wavelength_nm": 2481.0,
+      "mean_reflectance": 0.17559002339839935,
+      "smoothed_reflectance": 0.17535026794750347,
+      "first_derivative": -0.00047513028134565927,
+      "second_derivative": 7.970834357912127e-05,
+      "score": 7.566144831083754e-05
+    }
+  ],
+  "Dry": [
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 165,
+      "wavelength_nm": 565.0,
+      "mean_reflectance": 0.14084000885486603,
+      "smoothed_reflectance": 0.14070480769758248,
+      "first_derivative": -3.4132308407430756e-07,
+      "second_derivative": -3.3109192404470744e-05,
+      "score": 0.04174294768076135
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 238,
+      "wavelength_nm": 638.0,
+      "mean_reflectance": 0.12573999166488647,
+      "smoothed_reflectance": 0.12538336962008972,
+      "first_derivative": -0.0005813010755708753,
+      "second_derivative": -8.184854395138288e-05,
+      "score": 8.105369154219264e-05
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 270,
+      "wavelength_nm": 670.0,
+      "mean_reflectance": 0.0991000086069107,
+      "smoothed_reflectance": 0.09896186001682113,
+      "first_derivative": -3.564029416681935e-05,
+      "second_derivative": 0.00010668191674933006,
+      "score": 0.04174294768076135
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 290,
+      "wavelength_nm": 690.0,
+      "mean_reflectance": 0.1346299648284912,
+      "smoothed_reflectance": 0.13573006834973336,
+      "first_derivative": 0.004992483358723432,
+      "second_derivative": 0.0004321365112517628,
+      "score": 0.000432009733094485
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 585,
+      "wavelength_nm": 985.0,
+      "mean_reflectance": 0.850879967212677,
+      "smoothed_reflectance": 0.8508625885439189,
+      "first_derivative": 0.0009215739182242277,
+      "second_derivative": 0.0002302933446268196,
+      "score": 0.00023015850486449163
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 724,
+      "wavelength_nm": 1124.0,
+      "mean_reflectance": 0.8957198262214661,
+      "smoothed_reflectance": 0.895750690415426,
+      "first_derivative": 1.1845767672880037e-06,
+      "second_derivative": -1.5970271667248293e-05,
+      "score": 0.026703701431317173
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 799,
+      "wavelength_nm": 1199.0,
+      "mean_reflectance": 0.8690498471260071,
+      "smoothed_reflectance": 0.8690469889841088,
+      "first_derivative": -6.236608354692752e-06,
+      "second_derivative": 3.3384045294682085e-05,
+      "score": 0.026703701431317173
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 914,
+      "wavelength_nm": 1314.0,
+      "mean_reflectance": 0.9118298888206482,
+      "smoothed_reflectance": 0.9118355356027666,
+      "first_derivative": -5.038578501370683e-06,
+      "second_derivative": -1.4498017653741258e-05,
+      "score": 0.6341489396316836
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1031,
+      "wavelength_nm": 1431.0,
+      "mean_reflectance": 0.7144200801849365,
+      "smoothed_reflectance": 0.7148096433470602,
+      "first_derivative": -0.0027627314152062765,
+      "second_derivative": 0.00019868937254985397,
+      "score": 0.00019853578917905512
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1053,
+      "wavelength_nm": 1453.0,
+      "mean_reflectance": 0.6918798685073853,
+      "smoothed_reflectance": 0.6917309022513682,
+      "first_derivative": -1.0216735783330488e-05,
+      "second_derivative": 3.934341128433716e-05,
+      "score": 0.08177865048199062
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1241,
+      "wavelength_nm": 1641.0,
+      "mean_reflectance": 0.7736200094223022,
+      "smoothed_reflectance": 0.7735095527333589,
+      "first_derivative": -1.5834619717103315e-06,
+      "second_derivative": -4.177105590735808e-05,
+      "score": 0.08177865048199062
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1324,
+      "wavelength_nm": 1724.0,
+      "mean_reflectance": 0.6577599048614502,
+      "smoothed_reflectance": 0.6585588490218971,
+      "first_derivative": -2.4032392062112162e-05,
+      "second_derivative": 0.00016262588630922004,
+      "score": 0.0769223031555003
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1324,
+      "wavelength_nm": 1724.0,
+      "mean_reflectance": 0.6577599048614502,
+      "smoothed_reflectance": 0.6585588490218971,
+      "first_derivative": -2.4032392062112162e-05,
+      "second_derivative": 0.00016262588630922004,
+      "score": 0.00016148128154144792
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1416,
+      "wavelength_nm": 1816.0,
+      "mean_reflectance": 0.7094499468803406,
+      "smoothed_reflectance": 0.7094401682407806,
+      "first_derivative": 0.0007670730162538941,
+      "second_derivative": -0.00024280047130986748,
+      "score": 0.00024224678219259
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1461,
+      "wavelength_nm": 1861.0,
+      "mean_reflectance": 0.7357701063156128,
+      "smoothed_reflectance": 0.7354811521773974,
+      "first_derivative": -2.6985901963594294e-05,
+      "second_derivative": -8.271919522540028e-05,
+      "score": 0.0769223031555003
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1486,
+      "wavelength_nm": 1886.0,
+      "mean_reflectance": 0.7033898830413818,
+      "smoothed_reflectance": 0.7028294076137195,
+      "first_derivative": -0.003774791509922437,
+      "second_derivative": -0.0003364156520647976,
+      "score": 0.0003361488679371888
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1531,
+      "wavelength_nm": 1931.0,
+      "mean_reflectance": 0.528499960899353,
+      "smoothed_reflectance": 0.5283427854762572,
+      "first_derivative": 1.2260275815745292e-05,
+      "second_derivative": 0.00010999925385615783,
+      "score": 0.062036394012118024
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1599,
+      "wavelength_nm": 1999.0,
+      "mean_reflectance": 0.5903398990631104,
+      "smoothed_reflectance": 0.5903791794883753,
+      "first_derivative": -2.0154515922299332e-05,
+      "second_derivative": -6.555319465270659e-05,
+      "score": 0.062036394012118024
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1657,
+      "wavelength_nm": 2057.0,
+      "mean_reflectance": 0.4806399941444397,
+      "smoothed_reflectance": 0.4809409852896386,
+      "first_derivative": -0.001560283820469216,
+      "second_derivative": 0.00011859462154878431,
+      "score": 0.00011723597363255678
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1708,
+      "wavelength_nm": 2108.0,
+      "mean_reflectance": 0.4599801003932953,
+      "smoothed_reflectance": 0.45995816686043517,
+      "first_derivative": 5.180229189827301e-06,
+      "second_derivative": 2.1108066677696935e-05,
+      "score": 0.03155065935064666
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1816,
+      "wavelength_nm": 2216.0,
+      "mean_reflectance": 0.49157002568244934,
+      "smoothed_reflectance": 0.49150882621108183,
+      "first_derivative": -2.4448045404995566e-05,
+      "second_derivative": -6.868551622830898e-05,
+      "score": 0.03155065935064666
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1834,
+      "wavelength_nm": 2234.0,
+      "mean_reflectance": 0.4743199944496155,
+      "smoothed_reflectance": 0.4739252166103432,
+      "first_derivative": -0.0022323560378393614,
+      "second_derivative": -0.00015947366387047968,
+      "score": 0.00015527437304399538
+    },
+    {
+      "change_type": "slope_curvature_change",
+      "spectral_index_retained": 1904,
+      "wavelength_nm": 2304.0,
+      "mean_reflectance": 0.3312601149082184,
+      "smoothed_reflectance": 0.3321079203122572,
+      "first_derivative": -0.0003388159866821727,
+      "second_derivative": 0.00019477070845566602,
+      "score": 0.00019392547553541417
+    },
+    {
+      "change_type": "local_minimum",
+      "spectral_index_retained": 1906,
+      "wavelength_nm": 2306.0,
+      "mean_reflectance": 0.3307500183582306,
+      "smoothed_reflectance": 0.3318192054394924,
+      "first_derivative": 4.4903224538483943e-05,
+      "second_derivative": 0.00018623282980152756,
+      "score": 0.030526293346909483
+    },
+    {
+      "change_type": "local_maximum",
+      "spectral_index_retained": 1999,
+      "wavelength_nm": 2399.0,
+      "mean_reflectance": 0.36243000626564026,
+      "smoothed_reflectance": 0.3623454987864019,
+      "first_derivative": -1.2605515935765199e-05,
+      "second_derivative": -3.6302791596276585e-05,
+      "score": 0.030526293346909483
+    }
+  ]
+}
