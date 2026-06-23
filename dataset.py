@@ -10,6 +10,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 
+import matplotlib.pyplot as plt
+
 try:
     import cv2
 except ImportError:
@@ -1548,10 +1550,7 @@ if __name__ == "__main__":
         mask_method="contour",
         random_seed=123,
         return_debug=True,
-        compute_normalization_stats=True,
-        normalization_scope="stage_band",
-        normalization_method="robust_zscore",
-        normalization_output_clip=(-5.0, 5.0),
+        compute_normalization_stats=False,
     )
 
     loader = DataLoader(
@@ -1564,6 +1563,11 @@ if __name__ == "__main__":
     for batch in loader:
         band_dict, spec, debug = batch
         print("spec shape:", spec.shape)
+
+        spectra = spec.detach().cpu().numpy()
+        print(spectra)
+        plt.plot(spectra)
+        plt.show()
 
         for band_name in ["blue", "green", "red", "nir", "red_edge"]:
             patches = band_dict[band_name][0]

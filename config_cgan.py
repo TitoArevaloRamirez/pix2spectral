@@ -147,7 +147,7 @@ VAL_IMG_DIR = _expand(_env_str("PIX2SPECTRAL_VAL_IMG_DIR", IMG_DIR))
 TEST_IMG_DIR = _expand(_env_str("PIX2SPECTRAL_TEST_IMG_DIR", IMG_DIR))
 
 # Use None or "all" to disable species filtering.
-SPECIES_FILTER = _env_str("PIX2SPECTRAL_SPECIES_FILTER", "vineyard")
+SPECIES_FILTER = _env_str("PIX2SPECTRAL_SPECIES_FILTER", "avocado")
 if SPECIES_FILTER is not None and str(SPECIES_FILTER).strip().lower() in [
     "all",
     "any",
@@ -347,7 +347,7 @@ SEGMENT_BLEND_WIDTH = _env_int("PIX2SPECTRAL_SEGMENT_BLEND_WIDTH", 0)
 
 DISCRIMINATOR_MODE = _env_str(
     "PIX2SPECTRAL_DISCRIMINATOR_MODE",
-    "global",
+    "segmented",
 )
 
 USE_WAVELENGTH_CHANNEL = _env_bool("PIX2SPECTRAL_USE_WAVELENGTH_CHANNEL", True)

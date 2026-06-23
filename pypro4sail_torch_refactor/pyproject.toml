@@ -1,0 +1,9 @@
+[project]
+name = "pypro4sail-torch-refactor"
+version = "0.1.0"
+description = "PyTorch refactor of pyPro4SAIL scientific kernels"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.0", "numpy>=1.22"]
+
+[tool.setuptools.package-data]
+pypro4sail_torch = ["prospect_d_spectra.txt", "spectra/**/*.txt"]
